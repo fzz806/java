@@ -1,0 +1,51 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  /* 恶鬼形态（默认）：黑红 */
+  --c1: #ff3b30;
+  --c1-dim: #7a140f;
+  --c1-glow: rgba(255, 59, 48, .45);
+  --c1-soft: rgba(255, 59, 48, .12);
+  --bg1: #170607;
+  --bg2: #070304;
+}
+
+body.god-mode {
+  /* 伪神形态：银星紫 */
+  --c1: #9ecbff;
+  --c1-dim: #46618f;
+  --c1-glow: rgba(158, 203, 255, .45);
+  --c1-soft: rgba(158, 203, 255, .12);
+  --bg1: #0a0d1c;
+  --bg2: #03040a;
+}
+
+html, body, #app { height: 100%; }
+
+body {
+  font-family: "Noto Serif SC", "STSong", "SimSun", serif;
+  background: radial-gradient(ellipse at 50% 125%, var(--bg1) 0%, var(--bg2) 60%);
+  color: #e8e0d0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 1s ease;
+}
+
+/* 主容器布局 */
+.stage {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 6vw;
+  align-items: center;
+  padding: 40px;
+  max-width: 1240px;
+  width: 100%;
+}
+
+@media (max-width: 940px) {
+  body { overflow-y: auto; }
+  .stage { flex-direction: column; gap: 44px; padding: 80px 24px 60px; }
+}

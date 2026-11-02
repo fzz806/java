@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: false-god-backend
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 数据库：false_god（建表脚本见 sql/false_god.sql）
+    url: jdbc:mysql://localhost:3306/false_god?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: "123456"
+
+mybatis-plus:
+  configuration:
+    # 下划线列名自动映射驼峰属性：created_at -> createdAt
+    map-underscore-to-camel-case: true
+    # 开发期打印 SQL，联调结束后可注释掉
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      # 主键使用数据库自增
+      id-type: auto
+
+logging:
+  level:
+    com.falsegod: debug

@@ -1,0 +1,19 @@
+{
+  "name": "awaken-false-god-login",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "觉醒伪神：神明弃我我自为神 · 陈昊宇主题登录页（Vue 3 + Vite）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.3.5"
+  }
+}
