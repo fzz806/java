@@ -17,7 +17,6 @@ async function onSubmit() {
   if (pending.value) return
   pending.value = true
   try {
-    // TODO: 对接真实后端时，在 src/api/auth.js 中将 USE_MOCK 改为 false 即可
     const result = await login({ username: username.value, password: password.value })
     if (result.code === 0) {
       emit('submit', { username: username.value, data: result.data })
@@ -46,6 +45,19 @@ async function onSubmit() {
     </div>
 
     <h2>神印认证</h2>
+
+    <!-- 品牌主标：觉醒伪神 -->
+    <div class="brand">
+      <div class="brand-title">
+        <span class="br br-l"></span>
+        <span class="brand-name">觉 醒 伪 神</span>
+        <span class="br br-r"></span>
+      </div>
+      <div class="brand-motto">
+        神明弃我<span class="sep">，</span>我自为神
+      </div>
+    </div>
+
     <div class="sub">THE <b>RED</b> SEAL · 镇兽大比入场凭证</div>
 
     <form autocomplete="off" @submit.prevent="onSubmit">
@@ -142,6 +154,85 @@ h2 {
   margin: 8px 0 34px;
 }
 .sub b { color: var(--c1); font-weight: normal; transition: color .8s; }
+
+/* ---------- 品牌主标 觉醒伪神 ---------- */
+.brand {
+  margin-top: 16px;
+  text-align: center;
+  position: relative;
+}
+
+.brand-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.brand-name {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: .22em;
+  text-indent: .22em;
+  background: linear-gradient(180deg, #fff4e6 0%, var(--c1) 55%, var(--c1-dim) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 18px var(--c1-glow));
+  transition: filter .8s;
+}
+
+/* 标题两侧的刻线 */
+.brand-title .br {
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--c1));
+  transition: background .8s;
+}
+.brand-title .br-r {
+  background: linear-gradient(90deg, var(--c1), transparent);
+}
+
+/* 座右铭：神明弃我，我自为神 */
+.brand-motto {
+  margin-top: 10px;
+  font-size: 14px;
+  letter-spacing: .3em;
+  text-indent: .3em;
+  color: #a89c8a;
+  position: relative;
+  display: inline-block;
+  padding: 0 8px;
+}
+.brand-motto .sep {
+  color: var(--c1);
+  margin: 0 2px;
+  text-shadow: 0 0 10px var(--c1-glow);
+  transition: color .8s;
+}
+
+/* 座右铭两侧呼吸光点 */
+.brand-motto::before,
+.brand-motto::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: var(--c1);
+  box-shadow: 0 0 10px var(--c1-glow);
+  animation: mottoDot 2.8s ease-in-out infinite;
+  transition: background .8s;
+}
+.brand-motto::before { left: -10px; }
+.brand-motto::after { right: -10px; animation-delay: 1.4s; }
+
+@keyframes mottoDot {
+  0%, 100% { opacity: .25; transform: scale(.8); }
+  50%      { opacity: 1;   transform: scale(1.25); }
+}
 
 .field { margin-bottom: 22px; }
 .field label {

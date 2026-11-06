@@ -11,7 +11,7 @@
  Target Server Version : 80039 (8.0.39)
  File Encoding         : 65001
 
- Date: 02/11/2026 11:02:43
+ Date: 06/11/2026 16:28:54
 */
 
 SET NAMES utf8mb4;
@@ -28,11 +28,12 @@ CREATE TABLE `t_user`  (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '登记时间',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_username`(`username` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '伪神殿 · 用户表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '伪神殿 · 用户表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of t_user
 -- ----------------------------
-INSERT INTO `t_user` VALUES (1, 'chenhaoyu', '25d1efb94746338795761c7f0d077eb7', '2026-11-02 11:02:09');
+INSERT INTO `t_user` VALUES (1, 'chenhaoyu', '$2a$10$GbIBDe75hBHWLJ9gHLs2xebSHsjMNV0Y4.JgIod8yCrwHShjEdX/G', '2026-11-02 11:02:09');
+INSERT INTO `t_user` VALUES (3, 'yuzi', '$2a$10$GjtAmKGUv4e4QyNdbVJSquX5eX6HkH.Vc6PxWtbg22jDfw6kOt7XK', '2026-11-06 16:27:56');
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -41,7 +41,11 @@ async function onSubmit() {
       password: password.value
     })
     if (result.code === 0) {
-      emit('success', { username: result.data?.username || username.value })
+      // 一并抛出神印，供上层自动登临（拿真 token）后进入首页
+      emit('success', {
+        username: result.data?.username || username.value,
+        password: password.value
+      })
     } else {
       emit('error', result.message)
     }

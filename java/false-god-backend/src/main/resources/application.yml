@@ -26,3 +26,15 @@ mybatis-plus:
 logging:
   level:
     com.falsegod: debug
+
+# ---------------- 应用自定义配置 ----------------
+falsegod:
+  jwt:
+    # HS256 要求密钥 ≥ 32 字节。生产环境请用环境变量覆盖：
+    #   --falsegod.jwt.secret=xxxx  或  set FALSEGOD_JWT_SECRET=xxxx
+    secret: ${FALSEGOD_JWT_SECRET:falsegod-dev-only-secret-please-change-in-prod-2026}
+    # token 有效期（小时）
+    expire-hours: 24
+  cors:
+    # 允许直接跨域访问的来源（前端经 Vite 代理时不走这里）
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173

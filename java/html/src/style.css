@@ -49,3 +49,15 @@ body {
   body { overflow-y: auto; }
   .stage { flex-direction: column; gap: 44px; padding: 80px 24px 60px; }
 }
+
+/* ---------- 首页布局：纵向滚动，取消登录页的垂直居中 ---------- */
+body.home-view {
+  display: block;
+  overflow: hidden auto;
+  align-items: initial;
+  justify-content: initial;
+}
+body.home-view #app {
+  height: auto;
+  min-height: 100%;
+}

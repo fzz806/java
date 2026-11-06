@@ -15,7 +15,8 @@ const slogan = computed(() => (props.godMode ? '伪神临世' : '我自为神'))
 
     <h1>
       <span class="name">陈 昊 宇</span>
-      <span class="line1">神明弃我</span>
+      <span class="eyebrow">觉 醒 伪 神</span>
+      <span class="line1">神明弃我<span class="comma">，</span></span>
       <span class="line2" :class="{ god: godMode }">{{ slogan }}</span>
     </h1>
 
@@ -90,7 +91,27 @@ h1 .name {
   margin-bottom: 14px;
   font-weight: 400;
 }
+
+/* 主标：觉醒伪神 */
+h1 .eyebrow {
+  display: inline-block;
+  font-size: .3em;
+  letter-spacing: .5em;
+  text-indent: .5em;
+  color: var(--c1);
+  border: 1px solid var(--c1-dim);
+  padding: 6px 10px 6px 16px;
+  margin-bottom: 20px;
+  text-shadow: 0 0 14px var(--c1-glow);
+  transition: color .8s, border-color .8s;
+}
+
 h1 .line1 { display: block; color: #8f8776; }
+h1 .comma {
+  color: var(--c1);
+  text-shadow: 0 0 16px var(--c1-glow);
+  transition: color .8s;
+}
 h1 .line2 {
   display: block;
   margin-top: 6px;
