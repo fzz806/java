@@ -6,9 +6,10 @@
  * 后续接入真实数据时，把这里替换成 api/ 下的请求即可。
  */
 
-/** 顶部导航项（除首页外均为占位，点击只提示“尚未开启”） */
+/** 顶部导航项（lore = 万神大厅，滚动到首页图鉴区域；其余为占位） */
 export const navItems = [
   { key: 'home', label: '首页', en: 'HOME' },
+  { key: 'lore', label: '万神大厅', en: 'HALL' },
   { key: 'skill', label: '神技图鉴', en: 'SKILLS' },
   { key: 'beast', label: '镇兽大比', en: 'ARENA' },
   { key: 'guild', label: '恶鬼之牙', en: 'GUILD' },
@@ -16,7 +17,7 @@ export const navItems = [
 ]
 
 /** 搜索框下方的热词 */
-export const hotKeywords = ['骨翼', '星环瞳', '禁忌神技', '镇兽大比', '恶鬼之牙']
+export const hotKeywords = ['天锁八印', '红神印', '神魔四变', '镇兽大比', '恶鬼之牙']
 
 /** 搜索索引：神技 / 镇兽 / 成员 / 赛程 */
 export const searchIndex = [
@@ -33,7 +34,15 @@ export const searchIndex = [
   { type: '成员', name: '陈昊宇', level: '伪神', desc: '神堂判定神弃之人，现任恶鬼之牙王牌' },
   { type: '赛程', name: '镇兽大比 · 八强赛', level: '8 强', desc: '11 月 12 日 · 神堂中央斗场' },
   { type: '赛程', name: '镇兽大比 · 半决赛', level: '4 强', desc: '11 月 16 日 · 神堂中央斗场' },
-  { type: '赛程', name: '镇兽大比 · 决赛', level: '决赛', desc: '11 月 20 日 · 神堂中央斗场' }
+  { type: '赛程', name: '镇兽大比 · 决赛', level: '决赛', desc: '11 月 20 日 · 神堂中央斗场' },
+  { type: '修为', name: '天锁八印', level: '禁忌', desc: '八印之境，肉身即神狱，凡躯锁天门 · 万神大厅可查' },
+  { type: '修为', name: '真神', level: '终极', desc: '不受神堂册封，自己给自己的神格 · 万神大厅可查' },
+  { type: '神印', name: '红印', level: '男主专属', desc: '野生禁忌，魔与恶鬼之印，神弃者唯一的路 · 万神大厅可查' },
+  { type: '神印', name: '黑印', level: '深渊禁忌', desc: '深渊与古神禁忌之力，神堂缉杀令随印而来 · 万神大厅可查' },
+  { type: '异能', name: '神魔四变', level: 'SSS', desc: '神变 / 魔变 / 兽变 / 鬼变，伪神的四条权柄 · 万神大厅可查' },
+  { type: '异能', name: '空间系', level: '稀有', desc: '位移、空间斩，万里之外取人首级 · 万神大厅可查' },
+  { type: '势力', name: '恶鬼之牙公会', level: '阵营', desc: '接纳神弃者的庇护所，护短成性，全员恶人 · 万神大厅可查' },
+  { type: '势力', name: '镇兽塔', level: '试炼', desc: '层层闯关获取妖兽权柄与镇兽本源 · 万神大厅可查' }
 ]
 
 /** 战力概览（示例数据） */

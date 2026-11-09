@@ -1,7 +1,14 @@
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, onBeforeUnmount } from 'vue'
 import HomeNav from './HomeNav.vue'
 import HomeSearch from './HomeSearch.vue'
+import LoreHall from './LoreHall.vue'
+import FriendDrawer from './FriendDrawer.vue'
+import ChatPanel from './ChatPanel.vue'
+import SkillCodex from './SkillCodex.vue'
+import ArenaPage from './ArenaPage.vue'
+import GuildPage from './GuildPage.vue'
+import RankPage from './RankPage.vue'
 import {
   stats,
   notices,
@@ -30,10 +37,37 @@ function showToast(msg) {
 }
 onBeforeUnmount(() => clearTimeout(toastTimer))
 
+/* ---------------- 页面切换 ---------------- */
+// home = 首页，skill / beast / guild / rank = 四个子页面
+const page = ref('home')
+
+// 导航 key -> 页面组件映射
+const pageMap = {
+  skill: SkillCodex,
+  beast: ArenaPage,
+  guild: GuildPage,
+  rank: RankPage
+}
+const activePage = computed(() => pageMap[page.value] || null)
+
 /* ---------------- 导航 ---------------- */
 function handleNavigate(item) {
-  if (!item || item.key === 'home') {
+  if (!item) return
+  const key = item.key
+
+  // 子页面 / 首页：整页切换并回到顶部
+  if (key === 'home' || pageMap[key]) {
+    page.value = key
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    return
+  }
+  // 万神大厅：回首页并滚动到图鉴区域
+  if (key === 'lore') {
+    page.value = 'home'
+    nextTick(() => {
+      const el = document.getElementById('lore-hall')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
     return
   }
   showToast(`「${item.label}」尚未开启　先把首页看个够`)
@@ -69,6 +103,15 @@ const dateText = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart
 function notReady(name) {
   showToast(`「${name}」尚未开启`)
 }
+
+/* ---------------- 好友 & 传音 ---------------- */
+const friendDrawerOpen = ref(false)
+const chatFriend = ref(null) // { friendId, username, remark }
+
+function openChat(f) {
+  friendDrawerOpen.value = false
+  chatFriend.value = f
+}
 </script>
 
 <template>
@@ -76,14 +119,17 @@ function notReady(name) {
     <HomeNav
       :username="username"
       :god-mode="godMode"
-      active-key="home"
+      :active-key="page === 'lore' ? 'home' : page"
       @search="focusSearch"
       @navigate="handleNavigate"
       @toggle-form="emit('toggle-form')"
       @logout="emit('logout')"
     />
 
-    <main>
+    <!-- 子页面：神技图鉴 / 镇兽大比 / 恶鬼之牙 / 战力榜 -->
+    <component :is="activePage" v-if="activePage" />
+
+    <main v-else>
       <!-- ============ HERO ============ -->
       <section class="hero">
         <div class="hero-glow" aria-hidden="true"></div>
@@ -206,6 +252,9 @@ function notReady(name) {
         </article>
       </section>
 
+      <!-- ============ 万神大厅 · 世界观图鉴 ============ -->
+      <LoreHall id="lore-hall" />
+
       <!-- ============ 宣言 ============ -->
       <section class="creed">
         <p>
@@ -219,6 +268,34 @@ function notReady(name) {
       <div>觉 醒 伪 神 · 神明弃我 我自为神</div>
       <div class="foot-dim">前端首页 · 其余页面尚未开启 · v1.0.0</div>
     </footer>
+
+    <!-- 好友悬浮入口（固定右下角，不占首页布局） -->
+    <button
+      class="friend-fab"
+      title="好友名录 · 传音"
+      @click="friendDrawerOpen = true"
+    >
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.6" />
+        <path d="M3.5 19c.6-3.2 2.9-5 5.5-5s4.9 1.8 5.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        <path d="M15.5 8.5a2.8 2.8 0 1 1 2 4.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+        <path d="M17.5 15.5c1.8.4 2.9 1.7 3.3 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+      </svg>
+      <span>好友</span>
+    </button>
+
+    <!-- 好友名录抽屉 -->
+    <FriendDrawer
+      :open="friendDrawerOpen"
+      @close="friendDrawerOpen = false"
+      @chat="openChat"
+    />
+
+    <!-- 传音（聊天）面板 -->
+    <ChatPanel
+      :friend="chatFriend"
+      @close="chatFriend = null"
+    />
 
     <!-- 轻提示 -->
     <transition name="toast">
@@ -657,6 +734,37 @@ h1 .name {
   color: #7d7466;
 }
 .foot-dim { margin-top: 8px; font-size: 10px; letter-spacing: .2em; color: #453f4e; }
+
+/* ================= 好友悬浮入口 ================= */
+.friend-fab {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px 12px 14px;
+  background: linear-gradient(160deg, rgba(26, 17, 20, .95), rgba(8, 5, 6, .97));
+  border: 1px solid var(--c1-dim);
+  border-radius: 2px;
+  color: var(--c1);
+  font-family: inherit;
+  font-size: 12.5px;
+  letter-spacing: .2em;
+  cursor: pointer;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .55), 0 0 18px var(--c1-soft);
+  transition: all .35s, background .8s, border-color .8s;
+}
+:global(body.god-mode) .friend-fab {
+  background: linear-gradient(160deg, rgba(14, 17, 30, .95), rgba(4, 5, 10, .97));
+}
+.friend-fab svg { width: 19px; height: 19px; }
+.friend-fab:hover {
+  transform: translateY(-2px);
+  border-color: var(--c1);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .6), 0 0 30px var(--c1-soft);
+}
 
 /* ================= 提示 ================= */
 .toast {
