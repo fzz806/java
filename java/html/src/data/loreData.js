@@ -6,11 +6,14 @@
  * 纯前端数据，后续需要时再接后端。
  */
 
-/** 大厅分类（标签页顺序） */
+/** 大厅分类（标签页顺序）
+ *  awake: true 表示该卷需觉醒（登临 / 铸印）后方可翻阅
+ */
 export const loreTabs = [
   { key: 'realms', label: '修为等级', en: 'REALMS' },
-  { key: 'elements', label: '元素异能', en: 'ELEMENTS' },
-  { key: 'seals', label: '神印谱', en: 'SEALS' },
+  { key: 'normal', label: '普通元素', en: 'ELEMENTS' },
+  { key: 'special', label: '特殊系', en: 'SPECIAL' },
+  { key: 'seals', label: '神印谱', en: 'SEALS', awake: true },
   { key: 'protagonist', label: '伪神核心', en: 'PROTAGONIST' },
   { key: 'factions', label: '势力地点', en: 'FACTIONS' },
   { key: 'powers', label: '特殊力量', en: 'POWERS' }
@@ -122,16 +125,23 @@ export const protagonist = {
   coreAbilities: ['解析神印', '掠夺权柄', '改写力量', '神魔同流', '打破神明规则', '自我封神']
 }
 
-/* ================= 五、势力 & 关键地点 ================= */
-export const factions = [
+/* ================= 五、势力 & 关键地点 =================
+ * 分两组：公会势力（人的阵营） / 试炼赛事（地的舞台）
+ */
+/** 公会与阵营 */
+export const guildFactions = [
   {
     name: '神堂', tag: '正统神权', stance: '对立', color: '#f2d98c',
     desc: '掌控神印铸嵌的至高权柄，明面上维系秩序，暗地里打压一切神弃者与伪神'
   },
   {
-    name: '恶鬼之牙公会', tag: '男主归属', stance: '阵营', color: '#ff5a5a',
+    name: '恶鬼之牙公会', tag: '公会 · 男主归属', stance: '阵营', color: '#ff5a5a',
     desc: '接纳神弃者的庇护所，护短成性、全员恶人，仓库里囤着半个大陆的禁忌'
-  },
+  }
+]
+
+/** 试炼与赛事 */
+export const contests = [
   {
     name: '镇兽塔', tag: '试炼之地', stance: '闯关', color: '#e8a04a',
     desc: '层层闯关的镇兽试炼，胜者获取妖兽权柄与镇兽本源'
@@ -145,6 +155,9 @@ export const factions = [
     desc: '旧神陨落之地，埋藏古神遗物，只有高阶强者才敢踏入的厮杀场'
   }
 ]
+
+/** 兼容旧引用：公会 + 赛事合并 */
+export const factions = [...guildFactions, ...contests]
 
 /* ================= 六、其他特殊力量 ================= */
 export const powers = [

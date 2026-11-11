@@ -1,12 +1,5 @@
 <script setup>
-import { computed } from 'vue'
-
-const props = defineProps({
-  godMode: { type: Boolean, default: false }
-})
-const emit = defineEmits(['set-form'])
-
-const slogan = computed(() => (props.godMode ? '伪神临世' : '我自为神'))
+// 单形态版本：只保留恶鬼形态，不再提供形态切换
 </script>
 
 <template>
@@ -17,30 +10,16 @@ const slogan = computed(() => (props.godMode ? '伪神临世' : '我自为神'))
       <span class="name">陈 昊 宇</span>
       <span class="eyebrow">觉 醒 伪 神</span>
       <span class="line1">神明弃我<span class="comma">，</span></span>
-      <span class="line2" :class="{ god: godMode }">{{ slogan }}</span>
+      <span class="line2">我自为神</span>
     </h1>
 
-    <!-- 双形态切换 -->
+    <!-- 单一形态：恶鬼形态（不可切换） -->
     <div class="forms">
-      <div
-        class="form-card"
-        :class="{ active: !godMode }"
-        @click="emit('set-form', false)"
-      >
-        <div class="tag">第一变 · 恶鬼形态</div>
+      <div class="form-card active">
+        <div class="tag">恶 鬼 形 态</div>
         <h3>恶鬼</h3>
         <p>黑角 · 赤瞳 · 骨翼<br />力量暴涨，吞噬灵能即愈伤</p>
         <span class="roman">Ⅰ</span>
-      </div>
-      <div
-        class="form-card"
-        :class="{ active: godMode }"
-        @click="emit('set-form', true)"
-      >
-        <div class="tag">第二变 · 伪神形态</div>
-        <h3>伪神</h3>
-        <p>额生银纹 · 瞳作星环<br />复制并篡改他人神技</p>
-        <span class="roman">Ⅱ</span>
       </div>
     </div>
 
@@ -124,14 +103,14 @@ h1 .line2 {
   margin-top: 34px;
   display: flex;
   gap: 16px;
-  max-width: 500px;
+  max-width: 320px;
 }
 .form-card {
   flex: 1;
   border: 1px solid #3a3342;
   border-radius: 4px;
   padding: 16px 18px;
-  cursor: pointer;
+  cursor: default;
   background: rgba(0, 0, 0, .35);
   transition: all .4s;
   position: relative;
@@ -160,7 +139,6 @@ h1 .line2 {
 .form-card.active {
   border-color: var(--c1);
   box-shadow: 0 0 24px var(--c1-soft), inset 0 0 30px var(--c1-soft);
-  transform: translateY(-3px);
 }
 .form-card.active h3 { color: var(--c1); text-shadow: 0 0 12px var(--c1-glow); }
 .form-card.active .tag { color: var(--c1); }

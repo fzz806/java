@@ -13,7 +13,7 @@ const emit = defineEmits(['search', 'navigate', 'toggle-form', 'logout'])
 const open = ref(false)
 
 const initial = computed(() => (props.username ? props.username.slice(0, 1) : '？'))
-const formText = computed(() => (props.godMode ? '伪神形态' : '恶鬼形态'))
+const formText = computed(() => (props.godMode ? '神变 · 伪神' : '鬼变 · 恶鬼'))
 
 function onNav(item) {
   open.value = false

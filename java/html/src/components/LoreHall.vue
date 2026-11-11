@@ -7,14 +7,26 @@ import {
   specialElements,
   seals,
   protagonist,
-  factions,
+  guildFactions,
+  contests,
   powers
 } from '../data/loreData.js'
 
+const props = defineProps({
+  // 是否已觉醒（登临 / 铸印后）。未觉醒时，标注 awake 的卷（神印谱）不可翻阅
+  awakened: { type: Boolean, default: true }
+})
+
 const active = ref('realms')
 
-function pickTab(key) {
-  active.value = key
+// 当前卷是否需要觉醒，且尚未觉醒
+function isLocked(tab) {
+  return !!tab.awake && !props.awakened
+}
+
+function pickTab(tab) {
+  if (isLocked(tab)) return
+  active.value = tab.key
 }
 </script>
 
@@ -24,7 +36,7 @@ function pickTab(key) {
     <header class="hall-head">
       <div class="head-left">
         <h2>万 神 大 厅</h2>
-        <span class="hall-en">WORLD HALL · 世界观图鉴 · 六卷</span>
+        <span class="hall-en">WORLD HALL · 世界观图鉴 · 七卷</span>
       </div>
       <span class="hall-note">登录即入厅 · 神堂未登记的知识都在这里</span>
     </header>
@@ -35,11 +47,12 @@ function pickTab(key) {
         v-for="t in loreTabs"
         :key="t.key"
         class="tab"
-        :class="{ active: active === t.key }"
-        @click="pickTab(t.key)"
+        :class="{ active: active === t.key, locked: isLocked(t) }"
+        @click="pickTab(t)"
       >
         <span class="t-cn">{{ t.label }}</span>
         <span class="t-en">{{ t.en }}</span>
+        <span v-if="t.awake" class="t-lock">{{ props.awakened ? '觉醒解锁' : '未觉醒' }}</span>
       </button>
     </nav>
 
@@ -59,8 +72,8 @@ function pickTab(key) {
       <p class="panel-foot">凡人拾级而上，八印锁天，半神临门——真神之位，神堂不给，自己拿。</p>
     </div>
 
-    <!-- ================= 卷二 · 元素异能 ================= -->
-    <div v-else-if="active === 'elements'" class="panel">
+    <!-- ================= 卷二 · 普通元素（六系） ================= -->
+    <div v-else-if="active === 'normal'" class="panel">
       <div class="sub-title">普通元素 · 六系</div>
       <div class="elem-grid">
         <div
@@ -75,7 +88,11 @@ function pickTab(key) {
           <span class="e-desc">{{ e.desc }}</span>
         </div>
       </div>
+      <p class="panel-foot">火冰雷风土水，六系立世，寻常修士一生的全部可能。</p>
+    </div>
 
+    <!-- ================= 卷三 · 特殊系（六路） ================= -->
+    <div v-else-if="active === 'special'" class="panel">
       <div class="sub-title">特殊系 · 六路</div>
       <div class="sp-grid">
         <div
@@ -91,26 +108,36 @@ function pickTab(key) {
           <p class="sp-desc">{{ s.desc }}</p>
         </div>
       </div>
+      <p class="panel-foot">男主【伪神】不属任何一系——他靠神魔权柄作战。</p>
     </div>
 
-    <!-- ================= 卷三 · 神印谱 ================= -->
+    <!-- ================= 卷四 · 神印谱（觉醒后解锁） ================= -->
     <div v-else-if="active === 'seals'" class="panel">
-      <div class="seal-grid">
-        <div v-for="s in seals" :key="s.name" class="seal-card" :style="{ '--s': s.color, '--s2': s.sub }">
-          <div class="seal-orb" aria-hidden="true"></div>
-          <div class="seal-info">
-            <div class="seal-top">
-              <span class="seal-name">{{ s.name }}</span>
-              <span class="seal-tag" :class="{ rare: s.rare }">{{ s.tag }}</span>
+      <template v-if="props.awakened">
+        <div class="seal-grid">
+          <div v-for="s in seals" :key="s.name" class="seal-card" :style="{ '--s': s.color, '--s2': s.sub }">
+            <div class="seal-orb" aria-hidden="true"></div>
+            <div class="seal-info">
+              <div class="seal-top">
+                <span class="seal-name">{{ s.name }}</span>
+                <span class="seal-tag" :class="{ rare: s.rare }">{{ s.tag }}</span>
+              </div>
+              <p class="seal-desc">{{ s.desc }}</p>
             </div>
-            <p class="seal-desc">{{ s.desc }}</p>
           </div>
         </div>
+        <p class="panel-foot">神堂只认金白，其余皆是野种——可红印偏偏长在了男主心上。</p>
+      </template>
+
+      <!-- 未觉醒：封印态 -->
+      <div v-else class="seal-locked">
+        <span class="lock-mark">✕</span>
+        <p class="lock-title">此 卷 尚 未 解 封</p>
+        <p class="lock-desc">神印颜色与属性，需觉醒（登临神位 / 铸印封神）后方可翻阅。</p>
       </div>
-      <p class="panel-foot">神堂只认金白，其余皆是野种——可红印偏偏长在了男主心上。</p>
     </div>
 
-    <!-- ================= 卷四 · 伪神核心 ================= -->
+    <!-- ================= 卷五 · 伪神核心 ================= -->
     <div v-else-if="active === 'protagonist'" class="panel">
       <div class="talent-card">
         <div class="talent-row">
@@ -140,10 +167,22 @@ function pickTab(key) {
       </div>
     </div>
 
-    <!-- ================= 卷五 · 势力地点 ================= -->
+    <!-- ================= 卷六 · 势力地点（公会 / 赛事） ================= -->
     <div v-else-if="active === 'factions'" class="panel">
+      <div class="sub-title">公会 &amp; 阵营</div>
       <div class="fac-grid">
-        <div v-for="f in factions" :key="f.name" class="fac-card" :style="{ '--e': f.color }">
+        <div v-for="f in guildFactions" :key="f.name" class="fac-card" :style="{ '--e': f.color }">
+          <div class="fac-top">
+            <span class="fac-name">{{ f.name }}</span>
+            <span class="fac-tag">{{ f.stance }} · {{ f.tag }}</span>
+          </div>
+          <p class="fac-desc">{{ f.desc }}</p>
+        </div>
+      </div>
+
+      <div class="sub-title">试炼 &amp; 赛事</div>
+      <div class="fac-grid">
+        <div v-for="f in contests" :key="f.name" class="fac-card" :style="{ '--e': f.color }">
           <div class="fac-top">
             <span class="fac-name">{{ f.name }}</span>
             <span class="fac-tag">{{ f.stance }} · {{ f.tag }}</span>
@@ -153,7 +192,7 @@ function pickTab(key) {
       </div>
     </div>
 
-    <!-- ================= 卷六 · 特殊力量 ================= -->
+    <!-- ================= 卷七 · 特殊力量 ================= -->
     <div v-else class="panel">
       <div class="fac-grid">
         <div v-for="p in powers" :key="p.name" class="fac-card" :style="{ '--e': p.color }">
@@ -254,6 +293,60 @@ function pickTab(key) {
   box-shadow: 0 0 14px var(--c1-soft), inset 0 0 12px var(--c1-soft);
 }
 .tab.active .t-en { color: var(--c1-dim); }
+
+/* 觉醒解锁标识 */
+.tab .t-lock {
+  margin-top: 3px;
+  padding: 1px 6px;
+  font-size: 8px;
+  letter-spacing: .18em;
+  color: var(--c1);
+  border: 1px solid var(--c1-dim);
+  border-radius: 1px;
+  transition: color .4s, border-color .4s;
+}
+.tab.locked {
+  cursor: not-allowed;
+  opacity: .55;
+  filter: grayscale(.5);
+}
+.tab.locked:hover { color: #9d93a4; border-color: rgba(255, 255, 255, .09); }
+.tab.locked .t-lock { color: #6d6478; border-color: #3a3342; }
+
+/* 未觉醒封印态 */
+.seal-locked {
+  padding: 46px 20px 50px;
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, .12);
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, .015),
+    rgba(255, 255, 255, .015) 8px,
+    transparent 8px,
+    transparent 16px
+  );
+}
+.seal-locked .lock-mark {
+  display: inline-block;
+  font-size: 26px;
+  color: var(--c1);
+  text-shadow: 0 0 18px var(--c1-glow);
+  margin-bottom: 12px;
+}
+.seal-locked .lock-title {
+  font-size: 14px;
+  letter-spacing: .4em;
+  text-indent: .4em;
+  color: #b9b1a3;
+  margin-bottom: 10px;
+}
+.seal-locked .lock-desc {
+  font-size: 11.5px;
+  letter-spacing: .16em;
+  line-height: 1.9;
+  color: #6d6478;
+}
 
 /* ---------- 面板通用 ---------- */
 .panel { animation: loreIn .45s ease both; }

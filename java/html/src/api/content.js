@@ -49,3 +49,8 @@ export function fetchGuild() {
 export function fetchRank() {
   return request('/api/rank')
 }
+
+/** 首页概览：神堂公告 + 仓库库存（库存跟着战力状态变） */
+export function fetchHome() {
+  return request('/api/home')
+}

@@ -1,10 +1,12 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { fetchRank } from '../api/content.js'
+import { getSession } from '../api/session.js'
 
 const members = ref([])
 const loading = ref(true)
 const errorText = ref('')
+const me = getSession()?.username || ''
 
 load()
 async function load() {
@@ -41,10 +43,10 @@ const rest = computed(() => ranked.value.slice(3))
           v-for="m in top"
           :key="m.id"
           class="podium-card"
-          :class="'p' + m.rank"
+          :class="['p' + m.rank, { mine: m.name === me }]"
         >
           <span class="rank-badge">{{ m.rank }}</span>
-          <span class="p-name">{{ m.name }}</span>
+          <span class="p-name">{{ m.name }}<i v-if="m.name === me" class="me-tag">我</i></span>
           <span class="p-role">{{ m.role }} · {{ m.realm }}</span>
           <span class="p-power">{{ m.power }}<i>点</i></span>
         </div>
@@ -52,10 +54,10 @@ const rest = computed(() => ranked.value.slice(3))
 
       <!-- 其余名次 -->
       <div class="rank-list">
-        <div v-for="m in rest" :key="m.id" class="rank-row">
+        <div v-for="m in rest" :key="m.id" class="rank-row" :class="{ mine: m.name === me }">
           <span class="r-no">{{ m.rank }}</span>
           <div class="r-main">
-            <span class="r-name">{{ m.name }}<i class="r-role">{{ m.role }}</i></span>
+            <span class="r-name">{{ m.name }}<i class="r-role">{{ m.role }}</i><i v-if="m.name === me" class="me-tag">我</i></span>
             <span class="r-sub">{{ m.element }} · {{ m.realm }} · {{ m.bio }}</span>
           </div>
           <span class="r-power">{{ m.power }}</span>
@@ -180,6 +182,30 @@ const rest = computed(() => ranked.value.slice(3))
   transition: color .8s;
 }
 .p-power i { font-style: normal; font-size: 11px; font-weight: 400; color: #7d7466; margin-left: 5px; }
+
+/* 自己那一行 */
+.me-tag {
+  display: inline-block;
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  color: #ff9a9a;
+  border: 1px solid rgba(255, 77, 77, .45);
+  border-radius: 2px;
+  padding: 1px 5px;
+  margin-left: 7px;
+  background: rgba(255, 77, 77, .12);
+  text-shadow: 0 0 8px rgba(255, 77, 77, .3);
+  vertical-align: middle;
+}
+.podium-card.mine {
+  border-color: rgba(255, 77, 77, .55);
+  box-shadow: inset 0 0 40px rgba(255, 77, 77, .14), 0 0 18px rgba(255, 77, 77, .18);
+}
+.rank-row.mine {
+  border-color: rgba(255, 77, 77, .4);
+  background: rgba(255, 77, 77, .07);
+}
 
 /* 其余名次 */
 .rank-list {

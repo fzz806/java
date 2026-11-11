@@ -45,7 +45,7 @@ watch(
         text.value = steps[i]
       } else {
         stop()
-        text.value = `${props.username} · 神印烙成 · ${props.godMode ? '伪神形态' : '恶鬼形态'}登场`
+        text.value = `${props.username} · 神印烙成 · ${props.godMode ? '神变 · 伪神' : '鬼变 · 恶鬼'}登场`
         setTimeout(() => emit('done'), 1500)
       }
     }, 950)

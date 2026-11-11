@@ -10,7 +10,7 @@ const props = defineProps({
 const emit = defineEmits(['logout', 'toggle-form'])
 
 const greeting = computed(() => (props.godMode ? '伪神临世' : '恶鬼归位'))
-const formText = computed(() => (props.godMode ? '第二变 · 伪神形态' : '第一变 · 恶鬼形态'))
+const formText = computed(() => (props.godMode ? '神变 · 伪神' : '鬼变 · 恶鬼'))
 const duration = computed(() => loginDurationText(props.loginAt))
 </script>
 

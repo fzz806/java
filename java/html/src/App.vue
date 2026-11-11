@@ -130,6 +130,8 @@ async function handleLogout() {
   loginAt.value = 0
   ritualName.value = ''
   pendingToken = ''
+  // 登录页只有恶鬼形态，退出时回到默认形态
+  isGodMode.value = false
   view.value = 'login'
 }
 
@@ -176,8 +178,8 @@ onMounted(async () => {
     </div>
 
     <div class="stage">
-      <!-- 左侧：判定书 + 双形态 -->
-      <DeclarationPanel :god-mode="isGodMode" @set-form="setForm" />
+      <!-- 左侧：判定书 + 单一形态（恶鬼形态） -->
+      <DeclarationPanel />
 
       <!-- 右侧：登录 / 注册卡片切换 -->
       <LoginCard

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import HomeNav from './HomeNav.vue'
 import HomeSearch from './HomeSearch.vue'
 import LoreHall from './LoreHall.vue'
@@ -9,6 +9,7 @@ import SkillCodex from './SkillCodex.vue'
 import ArenaPage from './ArenaPage.vue'
 import GuildPage from './GuildPage.vue'
 import RankPage from './RankPage.vue'
+import PowerUpPage from './PowerUpPage.vue'
 import {
   stats,
   notices,
@@ -17,6 +18,8 @@ import {
   warehouse
 } from '../data/homeData.js'
 import { loginDurationText } from '../api/session.js'
+import { fetchPower } from '../api/power.js'
+import { fetchRank, fetchHome } from '../api/content.js'
 
 const props = defineProps({
   username: { type: String, default: '' },
@@ -26,6 +29,52 @@ const props = defineProps({
 const emit = defineEmits(['logout', 'toggle-form'])
 
 const searchRef = ref(null)
+
+/* ---------------- 战力概览：优先取后端真实数据 ---------------- */
+const livePower = ref(null)   // /api/power 的 data
+const liveRank = ref(null)    // 我的战力榜名次
+const liveHome = ref(null)    // /api/home 的 data（公告 + 仓库）
+
+async function refreshLive() {
+  const [p, r, h] = await Promise.all([fetchPower(), fetchRank(), fetchHome()])
+  if (p.code === 0 && p.data) livePower.value = p.data
+  if (r.code === 0 && Array.isArray(r.data) && livePower.value) {
+    const mine = livePower.value.power
+    liveRank.value = r.data.filter((m) => m.power > mine).length + 1
+  }
+  if (h.code === 0 && h.data) liveHome.value = h.data
+}
+
+onMounted(refreshLive)
+
+// 公告与仓库：后端有数据就用后端的，没有则回退示例数据
+const noticeList = computed(() =>
+  liveHome.value?.notices?.length ? liveHome.value.notices : notices
+)
+const wareList = computed(() =>
+  liveHome.value?.warehouse?.length ? liveHome.value.warehouse : warehouse
+)
+
+// 有真实数据时覆盖「综合战力 / 已习神技 / 战力榜」三项，否则沿用示例数据
+const statList = computed(() => {
+  const p = livePower.value
+  if (!p) return stats
+  const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  return stats.map((s) => {
+    if (s.label === '综合战力') {
+      return { ...s, value: fmt(p.power), hint: `${p.realm} · 红印 ${p.seal} 重` }
+    }
+    if (s.label === '已习神技') {
+      return { ...s, value: String(p.skills), hint: `灵能 ${p.spirit} / ${p.spiritMax}` }
+    }
+    if (s.label === '战力榜') {
+      return liveRank.value
+        ? { ...s, value: `第 ${liveRank.value}`, hint: '恶鬼之牙在册' }
+        : s
+    }
+    return s
+  })
+})
 
 /* ---------------- 轻提示（替代 alert，保持沉浸感） ---------------- */
 const toast = ref('')
@@ -38,15 +87,21 @@ function showToast(msg) {
 onBeforeUnmount(() => clearTimeout(toastTimer))
 
 /* ---------------- 页面切换 ---------------- */
-// home = 首页，skill / beast / guild / rank = 四个子页面
+// home = 首页，skill / beast / guild / rank / power = 子页面
 const page = ref('home')
+
+// 从战力提升页返回时重新拉一次战力，保证数字是最新的
+watch(page, (v) => {
+  if (v === 'home') refreshLive()
+})
 
 // 导航 key -> 页面组件映射
 const pageMap = {
   skill: SkillCodex,
   beast: ArenaPage,
   guild: GuildPage,
-  rank: RankPage
+  rank: RankPage,
+  power: PowerUpPage
 }
 const activePage = computed(() => pageMap[page.value] || null)
 
@@ -91,7 +146,7 @@ function handlePick(item) {
 }
 
 /* ---------------- 形态 / 身份 ---------------- */
-const formText = computed(() => (props.godMode ? '第二变 · 伪神形态' : '第一变 · 恶鬼形态'))
+const formText = computed(() => (props.godMode ? '神变 · 伪神' : '鬼变 · 恶鬼'))
 const duration = computed(() => loginDurationText(props.loginAt))
 const greeting = computed(() => (props.godMode ? '伪神临世' : '恶鬼归位'))
 
@@ -169,14 +224,19 @@ function openChat(f) {
 
       <!-- ============ 战力概览 ============ -->
       <section class="stats">
-        <div class="stat" v-for="(s, i) in stats" :key="s.label" :style="{ '--i': i }">
+        <div class="stat" v-for="(s, i) in statList" :key="s.label" :style="{ '--i': i }">
           <div class="stat-label">{{ s.label }}</div>
           <div class="stat-value">
             {{ s.value }}<span class="unit">{{ s.unit }}</span>
           </div>
           <div class="stat-hint">{{ s.hint }}</div>
         </div>
-        <div class="stats-note">示例数据 · 待接入后端</div>
+        <div class="stats-note">
+          <span>{{ livePower ? '实时数据 · 来自神堂接口' : '示例数据 · 待接入后端' }}</span>
+          <button class="stats-cta" @click="handleNavigate({ key: 'power' })">
+            ⚡ 前往战力提升 →
+          </button>
+        </div>
       </section>
 
       <!-- ============ 内容区 ============ -->
@@ -188,7 +248,7 @@ function openChat(f) {
             <button class="more" @click="notReady('公告列表')">全部 →</button>
           </header>
           <ul class="notice-list">
-            <li v-for="n in notices" :key="n.title" class="notice">
+            <li v-for="n in noticeList" :key="n.title" class="notice">
               <span class="n-tag" :class="n.tag === '紧急' ? 'urgent' : ''">{{ n.tag }}</span>
               <span class="n-main">
                 <span class="n-title">{{ n.title }}</span>
@@ -242,7 +302,7 @@ function openChat(f) {
             <button class="more" @click="notReady('仓库管理')">取用 →</button>
           </header>
           <div class="wares">
-            <div v-for="w in warehouse" :key="w.name" class="ware">
+            <div v-for="w in wareList" :key="w.name" class="ware">
               <span class="w-name">{{ w.name }}</span>
               <span class="w-count">×{{ w.count }}</span>
               <span class="w-rarity" :class="'r-' + w.rarity">{{ w.rarity }}</span>
@@ -253,7 +313,7 @@ function openChat(f) {
       </section>
 
       <!-- ============ 万神大厅 · 世界观图鉴 ============ -->
-      <LoreHall id="lore-hall" />
+      <LoreHall id="lore-hall" :awakened="!!username" />
 
       <!-- ============ 宣言 ============ -->
       <section class="creed">
@@ -494,9 +554,29 @@ h1 .name {
   position: absolute;
   right: 12px;
   bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 9.5px;
   letter-spacing: .12em;
   color: #453f4e;
+}
+.stats-cta {
+  padding: 5px 12px;
+  background: rgba(0, 0, 0, .4);
+  border: 1px solid var(--c1-dim);
+  border-radius: 2px;
+  color: var(--c1);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: .16em;
+  cursor: pointer;
+  transition: all .3s;
+}
+.stats-cta:hover {
+  background: var(--c1);
+  color: #0a0508;
+  box-shadow: 0 0 22px var(--c1-glow);
 }
 
 @keyframes riseIn {

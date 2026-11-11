@@ -1,11 +1,13 @@
 <script setup>
 import { ref } from 'vue'
 import { fetchGuild } from '../api/content.js'
+import { getSession } from '../api/session.js'
 
 const info = ref({})
 const members = ref([])
 const loading = ref(true)
 const errorText = ref('')
+const me = getSession()?.username || ''
 
 load()
 async function load() {
@@ -53,10 +55,10 @@ function initial(name) {
       <section class="card-panel">
         <h3>在 册 恶 鬼</h3>
         <div class="member-list">
-          <div v-for="m in members" :key="m.id" class="member">
+          <div v-for="m in members" :key="m.id" class="member" :class="{ mine: m.name === me }">
             <span class="avatar">{{ initial(m.name) }}</span>
             <div class="mem-main">
-              <span class="mem-name">{{ m.name }}<i class="mem-role">{{ m.role }}</i></span>
+              <span class="mem-name">{{ m.name }}<i class="mem-role">{{ m.role }}</i><i v-if="m.name === me" class="mem-me">我</i></span>
               <span class="mem-desc">{{ m.bio }}</span>
               <span class="mem-sub">{{ m.element }} · {{ m.realm }}</span>
             </div>
@@ -192,6 +194,22 @@ function initial(name) {
   transition: border-color .3s;
 }
 .member:hover { border-color: var(--c1-dim); }
+.member.mine {
+  border-color: rgba(255, 77, 77, .45);
+  background: rgba(255, 77, 77, .06);
+  box-shadow: inset 0 0 18px rgba(255, 77, 77, .1);
+}
+.mem-me {
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  color: #ff9a9a;
+  border: 1px solid rgba(255, 77, 77, .45);
+  border-radius: 2px;
+  padding: 1px 5px;
+  background: rgba(255, 77, 77, .12);
+  text-shadow: 0 0 8px rgba(255, 77, 77, .3);
+}
 .avatar {
   flex: none;
   width: 36px;

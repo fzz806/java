@@ -13,6 +13,7 @@ export const navItems = [
   { key: 'skill', label: '神技图鉴', en: 'SKILLS' },
   { key: 'beast', label: '镇兽大比', en: 'ARENA' },
   { key: 'guild', label: '恶鬼之牙', en: 'GUILD' },
+  { key: 'power', label: '战力提升', en: 'ASCEND' },
   { key: 'rank', label: '战力榜', en: 'RANKING' }
 ]
 
@@ -21,8 +22,8 @@ export const hotKeywords = ['天锁八印', '红神印', '神魔四变', '镇兽
 
 /** 搜索索引：神技 / 镇兽 / 成员 / 赛程 */
 export const searchIndex = [
-  { type: '神技', name: '骨翼 · 撕裂', level: 'A', desc: '第一变专属，骨翼横斩，附带灵能反馈' },
-  { type: '神技', name: '星环瞳 · 复写', level: 'S', desc: '第二变核心，复制视野内他人神技并篡改参数' },
+  { type: '神技', name: '骨翼 · 撕裂', level: 'A', desc: '鬼变专属，骨翼横斩，附带灵能反馈' },
+  { type: '神技', name: '星环瞳 · 复写', level: 'S', desc: '神变核心，复制视野内他人神技并篡改参数' },
   { type: '神技', name: '吞噬 · 愈伤', level: 'B', desc: '吞食灵能即修复伤势，代价是永无止境的饥饿' },
   { type: '神技', name: '禁忌 · 伪神降临', level: 'SSS', desc: '三分钟内篡改全场规则，冷却七日' },
   { type: '神技', name: '骨刺 · 贯星', level: 'A', desc: '将骨翼拆解为十二枚骨刺，可穿三层护盾' },
