@@ -26,10 +26,13 @@ java/
 ## 关键信息（配置基准）
 | 项目 | 值 |
 |------|-----|
+| 本机 IP | `192.168.68.63`（以太网） |
 | 后端端口 | 8080 |
 | 前端端口 | 5173 |
-| 前端代理 | `/api` → `http://localhost:8080` |
-| 数据库 | MySQL `false_god`，root / 123456 |
+| 前端代理 | `/api` → `http://192.168.68.63:8080` |
+| 数据库 | MySQL `false_god`，`192.168.68.63:3306`，root / 123456 |
+| 本机访问 | http://192.168.68.63:5173 |
+| 局域网访问 | 同一 WiFi 下手机/其他电脑打开 http://192.168.68.63:5173 |
 | 测试账号 | chenhaoyu / 123456 |
 | 后端接口 | `POST /api/login`、`POST /api/register` |
 | Java | Zulu 21（`C:\Program Files\Zulu\zulu-21`） |
@@ -45,8 +48,8 @@ java/
 6. 缺 `node_modules` 才 `npm install`，启动前端，最后自动打开浏览器
 
 启动完成后控制台会打印：
-- 前端 http://localhost:5173
-- 后端 http://localhost:8080
+- 前端 http://192.168.68.63:5173
+- 后端 http://192.168.68.63:8080
 - 测试账号 chenhaoyu / 123456
 
 ## 停止步骤
@@ -67,7 +70,8 @@ java/
   mysql -uroot -p123456 --default-character-set=utf8mb4 false_god < sql/false_god.sql
   ```
   注意**必须加 `--default-character-set=utf8mb4`**，否则中文报 `ERROR 1366`。
-- **前端连不上后端**：确认 8080 已启动，检查 `vite.config.js` 代理 target。
+- **前端连不上后端**：确认 8080 已启动，检查 `vite.config.js` 代理 target 是否为 `192.168.68.63:8080`。
+- **手机打不开页面**：① 手机与电脑连同一 WiFi；② Windows 防火墙放行 5173/8080 入站（首次可临时关闭防火墙验证）；③ 确认 IP 没变（换网/重连路由会变，`ipconfig` 查）。
 - **想临时用 Mock 模式**：把 `html/src/api/auth.js` 里 `USE_MOCK` 改成 `true`。
 
 ## 已知待完善（下次可做）

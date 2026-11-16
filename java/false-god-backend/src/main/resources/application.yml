@@ -1,4 +1,6 @@
 server:
+  # 0.0.0.0 = 监听全部网卡，局域网可用 http://192.168.68.63:8080 直连
+  address: 0.0.0.0
   port: 8080
 
 spring:
@@ -7,6 +9,8 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 数据库：false_god（建表脚本见 sql/false_god.sql）
+    # 说明：MySQL 与本服务同机，走 localhost 回环即可；
+    #      若改成 192.168.68.63:3306，MySQL 会把来源认作主机名 VOIPC66 而拒绝（root 仅授权 @localhost）。
     url: jdbc:mysql://localhost:3306/false_god?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: "123456"
@@ -37,4 +41,4 @@ falsegod:
     expire-hours: 24
   cors:
     # 允许直接跨域访问的来源（前端经 Vite 代理时不走这里）
-    allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+    allowed-origins: http://192.168.68.63:5173,http://localhost:5173,http://127.0.0.1:5173

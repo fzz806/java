@@ -57,7 +57,9 @@
   transition: color .8s;
 }
 h1 {
-  font-size: clamp(36px, 5vw, 72px);
+  /* 72px 时「神明弃我，」实测约 389px，而左栏只有 384px，会多折出一行
+     「我，」——降上限到 68px 并给两行加 nowrap，确保始终是两行 */
+  font-size: clamp(34px, 4.8vw, 68px);
   line-height: 1.3;
   font-weight: 900;
   letter-spacing: .1em;
@@ -85,7 +87,7 @@ h1 .eyebrow {
   transition: color .8s, border-color .8s;
 }
 
-h1 .line1 { display: block; color: #8f8776; }
+h1 .line1 { display: block; color: #8f8776; white-space: nowrap; }
 h1 .comma {
   color: var(--c1);
   text-shadow: 0 0 16px var(--c1-glow);
@@ -93,6 +95,7 @@ h1 .comma {
 }
 h1 .line2 {
   display: block;
+  white-space: nowrap;
   margin-top: 6px;
   color: var(--c1);
   text-shadow: 0 0 24px var(--c1-glow);

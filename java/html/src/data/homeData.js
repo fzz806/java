@@ -14,6 +14,7 @@ export const navItems = [
   { key: 'beast', label: '镇兽大比', en: 'ARENA' },
   { key: 'guild', label: '恶鬼之牙', en: 'GUILD' },
   { key: 'power', label: '战力提升', en: 'ASCEND' },
+  { key: 'task', label: '神格任务', en: 'QUESTS' },
   { key: 'rank', label: '战力榜', en: 'RANKING' }
 ]
 

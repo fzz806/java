@@ -5,7 +5,10 @@ import { navItems } from '../data/homeData.js'
 const props = defineProps({
   username: { type: String, default: '' },
   godMode: { type: Boolean, default: false },
-  activeKey: { type: String, default: 'home' }
+  activeKey: { type: String, default: 'home' },
+  taskClaimable: { type: Number, default: 0 },
+  level: { type: Number, default: 0 },
+  levelTitle: { type: String, default: '' }
 })
 const emit = defineEmits(['search', 'navigate', 'toggle-form', 'logout'])
 
@@ -14,6 +17,11 @@ const open = ref(false)
 
 const initial = computed(() => (props.username ? props.username.slice(0, 1) : '？'))
 const formText = computed(() => (props.godMode ? '神变 · 伪神' : '鬼变 · 恶鬼'))
+
+/** 阶位徽记点击直达任务页 */
+function goTask() {
+  emit('navigate', { key: 'task', label: '神格任务' })
+}
 
 function onNav(item) {
   open.value = false
@@ -53,7 +61,10 @@ function onNav(item) {
           :class="{ active: activeKey === item.key }"
           @click="onNav(item)"
         >
-          <span class="cn">{{ item.label }}</span>
+          <span class="cn">
+            {{ item.label }}
+            <i v-if="item.key === 'task' && taskClaimable > 0" class="dot-badge" aria-hidden="true"></i>
+          </span>
           <span class="en">{{ item.en }}</span>
         </button>
       </nav>
@@ -70,6 +81,13 @@ function onNav(item) {
         <button class="form-btn" title="切换形态" @click="emit('toggle-form')">
           <i class="dot" :class="{ god: godMode }"></i>
           {{ formText }}
+        </button>
+
+        <!-- 阶位徽记：点一下去任务页 -->
+        <button v-if="level > 0" class="lv-chip" :title="`神格阶位 · ${levelTitle}`" @click="goTask">
+          <b>Lv.{{ level }}</b>
+          <i>{{ levelTitle }}</i>
+          <span v-if="taskClaimable > 0" class="chip-dot" aria-hidden="true"></span>
         </button>
 
         <div class="user" :title="username">
@@ -196,7 +214,22 @@ function onNav(item) {
   gap: 1px;
   transition: color .3s;
 }
-.link .cn { font-size: 13px; letter-spacing: .18em; }
+.link .cn { position: relative; font-size: 13px; letter-spacing: .18em; }
+.dot-badge {
+  position: absolute;
+  top: -3px;
+  right: -9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--c1);
+  box-shadow: 0 0 8px var(--c1-glow);
+  animation: badgeBlink 1.9s ease-in-out infinite;
+}
+@keyframes badgeBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .35; }
+}
 .link .en {
   font-size: 8px;
   letter-spacing: .2em;
@@ -279,14 +312,55 @@ function onNav(item) {
   box-shadow: 0 0 10px var(--c1-glow);
 }
 
+/* 阶位徽记 */
+.lv-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 11px;
+  background: transparent;
+  border: 1px solid var(--c1-dim);
+  border-radius: 2px;
+  color: var(--c1);
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .3s;
+}
+.lv-chip b {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: .1em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 12px var(--c1-glow);
+}
+.lv-chip i {
+  font-style: normal;
+  font-size: 10.5px;
+  letter-spacing: .16em;
+  color: #9a8a6a;
+}
+.lv-chip:hover { border-color: var(--c1); box-shadow: 0 0 16px var(--c1-soft); }
+.chip-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--c1);
+  box-shadow: 0 0 8px var(--c1-glow);
+  animation: badgeBlink 1.9s ease-in-out infinite;
+}
+
 .user {
   display: flex;
   align-items: center;
   gap: 8px;
   padding-left: 4px;
   min-width: 0;
-}
-.avatar {
+}.avatar {
   width: 30px;
   height: 30px;
   flex: none;
@@ -373,6 +447,8 @@ function onNav(item) {
   .menu-btn { display: grid; }
   .uname { display: none; }
   .form-btn { font-size: 10.5px; padding: 6px 9px; }
+  .lv-chip { padding: 5px 8px; }
+  .lv-chip i { display: none; }
 }
 @media (max-width: 560px) {
   .brand-text i { display: none; }

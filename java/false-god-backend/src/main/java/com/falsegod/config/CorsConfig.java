@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * 跨域配置。
  *
- * <p>正常运行方式是前端经 Vite 代理访问（/api -> localhost:8080），本身不跨域。
+ * <p>正常运行方式是前端经 Vite 代理访问（/api -> 192.168.68.63:8080），本身不跨域。
  * 这里只为「前端直接以 5173 源访问后端」的场景保留白名单。
  *
  * <p>安全要点：绝不能同时用 {@code allowedOrigins("*")} 与
@@ -24,7 +24,7 @@ import java.util.List;
 public class CorsConfig {
 
     /** 允许的来源，逗号分隔，可在 application.yml 覆盖 */
-    @Value("${falsegod.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}")
+    @Value("${falsegod.cors.allowed-origins:http://192.168.68.63:5173,http://localhost:5173,http://127.0.0.1:5173}")
     private String allowedOrigins;
 
     @Bean

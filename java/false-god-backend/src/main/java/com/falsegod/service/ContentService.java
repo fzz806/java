@@ -11,6 +11,8 @@ import com.falsegod.mapper.MemberMapper;
 import com.falsegod.mapper.SkillMapper;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,15 +27,18 @@ public class ContentService {
     private final ArenaMatchMapper arenaMatchMapper;
     private final MemberMapper memberMapper;
     private final GuildInfoMapper guildInfoMapper;
+    private final PowerService powerService;
 
     public ContentService(SkillMapper skillMapper,
                           ArenaMatchMapper arenaMatchMapper,
                           MemberMapper memberMapper,
-                          GuildInfoMapper guildInfoMapper) {
+                          GuildInfoMapper guildInfoMapper,
+                          PowerService powerService) {
         this.skillMapper = skillMapper;
         this.arenaMatchMapper = arenaMatchMapper;
         this.memberMapper = memberMapper;
         this.guildInfoMapper = guildInfoMapper;
+        this.powerService = powerService;
     }
 
     /** 神技图鉴（禁忌技置顶，同级按熟练度倒序） */

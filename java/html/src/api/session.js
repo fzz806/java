@@ -1,11 +1,12 @@
 /**
  * 登录态会话管理
  *
- * 后端目前返回的是假 token（fake-jwt-xxxx），没有真实的鉴权校验能力，
+ * 后端现已返回真 JWT（HS384 签名，24h 有效），由 AuthInterceptor 校验，
  * 因此这里只做「本地会话」：把登录结果存进 localStorage，
  * 刷新页面后仍保持已登录，并提供登出入口。
  *
- * 将来后端换成真 JWT 时，只需把 token 换成真值，本文件逻辑无需改动。
+ * token 过期或失效时，后端返回 401，各 api/*.js 会归一成 { code: 401 }，
+ * 由页面提示重新登临。
  */
 
 const KEY = 'false-god-session'

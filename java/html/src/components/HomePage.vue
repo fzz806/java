@@ -10,6 +10,7 @@ import ArenaPage from './ArenaPage.vue'
 import GuildPage from './GuildPage.vue'
 import RankPage from './RankPage.vue'
 import PowerUpPage from './PowerUpPage.vue'
+import TaskPage from './TaskPage.vue'
 import {
   stats,
   notices,
@@ -19,6 +20,7 @@ import {
 } from '../data/homeData.js'
 import { loginDurationText } from '../api/session.js'
 import { fetchPower } from '../api/power.js'
+import { fetchTask } from '../api/task.js'
 import { fetchRank, fetchHome } from '../api/content.js'
 
 const props = defineProps({
@@ -34,15 +36,60 @@ const searchRef = ref(null)
 const livePower = ref(null)   // /api/power 的 data
 const liveRank = ref(null)    // 我的战力榜名次
 const liveHome = ref(null)    // /api/home 的 data（公告 + 仓库）
+const taskClaimable = ref(0)  // 实际可领取的任务数（额度用尽时为 0），用于导航红点
+const taskClaimRaw = ref(0)   // 达标任务数，不受每日额度影响
+const taskLimitReached = ref(false) // 今日领取额度是否已用尽
+const taskLevel = ref(0)      // 神格阶位，展示在导航徽记上
+const taskTitle = ref('')
+const taskExp = ref(0)
+const taskExpMax = ref(0)
+const taskExpPercent = ref(0)
+const taskTotalExp = ref(0)
+const taskFull = ref(false)
 
 async function refreshLive() {
-  const [p, r, h] = await Promise.all([fetchPower(), fetchRank(), fetchHome()])
+  const [p, r, h, t] = await Promise.all([fetchPower(), fetchRank(), fetchHome(), fetchTask()])
   if (p.code === 0 && p.data) livePower.value = p.data
   if (r.code === 0 && Array.isArray(r.data) && livePower.value) {
     const mine = livePower.value.power
     liveRank.value = r.data.filter((m) => m.power > mine).length + 1
   }
   if (h.code === 0 && h.data) liveHome.value = h.data
+  if (t.code === 0 && t.data) applyTaskPanel(t.data)
+}
+
+/** 任务面板变化时同步导航徽记（领取后红点立刻消失，不必等回首页） */
+function applyTaskPanel(panel) {
+  // 额度用尽的任务虽然达标，今天也领不了：红点与入口按「实际可领」算，
+  // 达标数量另存一份，用来提示"额度已满"而不是假装没有奖赏
+  const reached = !!panel.limitReached
+  taskLimitReached.value = reached
+  taskClaimRaw.value = panel.claimable || 0
+  taskClaimable.value = reached ? 0 : panel.claimable || 0
+  taskLevel.value = panel.level || 0
+  taskTitle.value = panel.title || ''
+  taskExp.value = panel.exp || 0
+  taskExpMax.value = panel.expMax || 0
+  taskExpPercent.value = panel.percent || 0
+  taskTotalExp.value = panel.totalExp || 0
+  taskFull.value = !!panel.full
+}
+
+/** 阶位条提示：满级不再提示"还需多少" */
+const taskExpHint = computed(() => {
+  if (!taskLevel.value) return ''
+  if (taskFull.value) return `神格圆满 · 累计 ${taskTotalExp.value} 点经验`
+  const rest = Math.max(0, taskExpMax.value - taskExp.value)
+  return `神格经验 ${taskExp.value} / ${taskExpMax.value} · 距下一阶还需 ${rest} 点`
+})
+
+function onTaskSync(panel) {
+  if (panel) applyTaskPanel(panel)
+}
+
+/** 任务页里的「去完成」：跳到对应的修行页面 */
+function goPage(key) {
+  if (key) handleNavigate({ key })
 }
 
 onMounted(refreshLive)
@@ -101,7 +148,8 @@ const pageMap = {
   beast: ArenaPage,
   guild: GuildPage,
   rank: RankPage,
-  power: PowerUpPage
+  power: PowerUpPage,
+  task: TaskPage
 }
 const activePage = computed(() => pageMap[page.value] || null)
 
@@ -175,6 +223,9 @@ function openChat(f) {
       :username="username"
       :god-mode="godMode"
       :active-key="page === 'lore' ? 'home' : page"
+      :task-claimable="taskClaimable"
+      :level="taskLevel"
+      :level-title="taskTitle"
       @search="focusSearch"
       @navigate="handleNavigate"
       @toggle-form="emit('toggle-form')"
@@ -182,7 +233,7 @@ function openChat(f) {
     />
 
     <!-- 子页面：神技图鉴 / 镇兽大比 / 恶鬼之牙 / 战力榜 -->
-    <component :is="activePage" v-if="activePage" />
+    <component :is="activePage" v-if="activePage" @sync="onTaskSync" @goto="goPage" />
 
     <main v-else>
       <!-- ============ HERO ============ -->
@@ -220,6 +271,23 @@ function openChat(f) {
             <HomeSearch ref="searchRef" @pick="handlePick" />
           </div>
         </div>
+      </section>
+
+      <!-- ============ 阶位进度 ============ -->
+      <section v-if="taskLevel" class="levelbar">
+        <div class="lb-left">
+          <span class="lb-lv">Lv.{{ taskLevel }}</span>
+          <span class="lb-title">{{ taskTitle }}</span>
+        </div>
+        <div class="lb-mid">
+          <div class="lb-track"><div class="lb-fill" :style="{ width: taskExpPercent + '%' }"></div></div>
+          <span class="lb-hint">{{ taskExpHint }}</span>
+        </div>
+        <button class="lb-cta" :class="{ hot: taskClaimable > 0 }" @click="handleNavigate({ key: 'task' })">
+          <template v-if="taskClaimable > 0">{{ taskClaimable }} 项奖赏待领 →</template>
+          <template v-else-if="taskLimitReached && taskClaimRaw > 0">今日额度已满 · 明日再来 →</template>
+          <template v-else>神格任务 →</template>
+        </button>
       </section>
 
       <!-- ============ 战力概览 ============ -->
@@ -502,6 +570,70 @@ h1 .name {
 .chip.soft { color: #6f6779; border-style: dashed; }
 
 .hero-search { margin-top: 34px; }
+
+/* ================= 阶位进度 ================= */
+.levelbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 0 0 22px;
+  padding: 14px 18px;
+  border: 1px solid var(--c1-dim);
+  border-radius: 3px;
+  background: linear-gradient(120deg, rgba(20, 14, 18, .8), rgba(8, 5, 6, .86));
+  box-shadow: inset 0 0 40px var(--c1-soft);
+  transition: background .8s, border-color .8s;
+}
+:global(body.god-mode) .levelbar {
+  background: linear-gradient(120deg, rgba(14, 17, 30, .8), rgba(4, 5, 10, .86));
+}
+.lb-left { display: flex; align-items: baseline; gap: 9px; flex: none; }
+.lb-lv {
+  font-size: 17px;
+  font-weight: 900;
+  color: #fff4e6;
+  letter-spacing: .02em;
+  text-shadow: 0 0 16px var(--c1-glow);
+}
+.lb-title { font-size: 12px; letter-spacing: .24em; color: var(--c1); transition: color .8s; }
+.lb-mid { flex: 1; min-width: 0; }
+.lb-track { height: 4px; background: rgba(255, 255, 255, .07); overflow: hidden; }
+.lb-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--c1-dim), var(--c1));
+  box-shadow: 0 0 12px var(--c1-glow);
+  transition: width .6s ease;
+}
+.lb-hint { display: block; margin-top: 7px; font-size: 10px; letter-spacing: .16em; color: #5d5666; }
+.lb-cta {
+  flex: none;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--c1-dim);
+  border-radius: 2px;
+  color: #b9b1a3;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: .18em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .3s;
+}
+.lb-cta.hot {
+  color: var(--c1);
+  border-color: var(--c1);
+  animation: lbPulse 2.2s ease-in-out infinite;
+}
+.lb-cta:hover { color: #e8e0d0; border-color: var(--c1); }
+@keyframes lbPulse {
+  0%, 100% { box-shadow: 0 0 8px var(--c1-soft); }
+  50%      { box-shadow: 0 0 20px var(--c1-glow); }
+}
+@media (max-width: 720px) {
+  .levelbar { flex-wrap: wrap; gap: 12px; }
+  .lb-mid { order: 3; flex: 1 1 100%; }
+  .lb-cta { margin-left: auto; }
+}
 
 /* ================= 战力概览 ================= */
 .stats {

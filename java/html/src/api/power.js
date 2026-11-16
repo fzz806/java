@@ -1,9 +1,18 @@
 /**
  * 战力提升 API 层
  *
- * 后端接口（springBootTest，:8081，均需 Bearer token）：
- *   GET  /api/power          战力面板
+ * 后端接口（false-god-backend，:8080，均需 Bearer token）：
+ * GET  /api/power          战力面板
+ *                                 -> { power, realm, nextRealm, realmLevel, realmMax,
+ *                                      spirit, spiritMax, seal, sealMax, skills, essence,
+ *                                      actions: [{key,label,desc,gain,cost,effect,available}],
+ *                                      logs: [{time,text,gain}] }
  *   POST /api/power/upgrade  { type: realm | seal | skill | essence | rest }
+ *                                 -> { panel: {...同上传结构}, gain: number, looted?: {name,level,element,desc} }
+ *
+ * 数值模型：境界（一印→九印）× 红印重数（0-9），红印满 9 重才能突破境界。
+ * 综合战力由后端按各维度实时推导，不落库，保证面板/增量/榜单三处一致。
+ * 失败时返回 code=400 与中文提示，页面直接弹 toast。
  *
  * 统一响应：{ code: 0, message: 'ok', data: {...} }
  */

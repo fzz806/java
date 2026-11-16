@@ -95,22 +95,56 @@ if errorlevel 1 (
 )
 echo    [OK] MySQL 已在 3306 运行
 
+rem 用 t_message（三份脚本的最后一个表）作为哨兵：缺它说明库不完整，需要全量导入
 if defined MYSQL_EXE (
-    "%MYSQL_EXE%" -uroot -p123456 -N -e "show databases like 'false_god';" 2>nul | findstr "false_god" >nul
+    "%MYSQL_EXE%" -uroot -p123456 -N -e "use information_schema; select table_name from tables where table_schema='false_god' and table_name='t_message';" 2>nul | findstr "t_message" >nul
     if errorlevel 1 (
-        echo      [!] false_god 库不存在，自动建库导入...
+        echo      [!] false_god 库不完整，自动建库并导入 3 份脚本...
         "%MYSQL_EXE%" -uroot -p123456 -e "CREATE DATABASE IF NOT EXISTS false_god DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;" 2>nul
-        if exist "%~dp0false-god-backend\sql\false_god.sql" (
-            "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 false_god < "%~dp0false-god-backend\sql\false_god.sql" 2>nul
-            echo    [OK] 数据库已初始化
-        ) else (
-            echo    [!] 未找到 sql 脚本，请手动导入 false-god-backend\sql\false_god.sql
+        for %%s in (false_god.sql false_god_content.sql false_god_social.sql) do (
+            if exist "%~dp0false-god-backend\sql\%%s" (
+                "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 false_god < "%~dp0false-god-backend\sql\%%s" 2>nul
+                echo      [OK] 导入 %%s
+            ) else (
+                echo      [!] 缺少 sql\%%s
+            )
         )
+        echo    [OK] 数据库已初始化（7 张表）
     ) else (
-        echo    [OK] false_god 库已存在
+        echo    [OK] false_god 库已存在且完整
     )
 ) else (
     echo    [!] 未找到 mysql 客户端，跳过建库检查
+)
+
+rem 战力与首页数据表（t_power 为哨兵）：幂等脚本，缺表则补建，不清理用户数据
+if defined MYSQL_EXE (
+    "%MYSQL_EXE%" -uroot -p123456 -N -e "use information_schema; select table_name from tables where table_schema='false_god' and table_name='t_power';" 2>nul | findstr "t_power" >nul
+    if errorlevel 1 (
+        if exist "%~dp0false-god-backend\sql\false_god_power.sql" (
+            "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 false_god < "%~dp0false-god-backend\sql\false_god_power.sql" 2>nul
+            echo    [OK] 导入 false_god_power.sql（战力 + 首页，共 4 张表）
+        ) else (
+            echo    [!] 缺少 sql\false_god_power.sql
+        )
+    ) else (
+        echo    [OK] 战力/首页表已存在
+    )
+)
+
+rem 神格任务数据表（t_task 为哨兵）：幂等脚本，缺表则补建，不清理经验与领取记录
+if defined MYSQL_EXE (
+    "%MYSQL_EXE%" -uroot -p123456 -N -e "use information_schema; select table_name from tables where table_schema='false_god' and table_name='t_task';" 2>nul | findstr "t_task" >nul
+    if errorlevel 1 (
+        if exist "%~dp0false-god-backend\sql\false_god_task.sql" (
+            "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 false_god < "%~dp0false-god-backend\sql\false_god_task.sql" 2>nul
+            echo    [OK] 导入 false_god_task.sql（任务 + 经验，共 4 张表）
+        ) else (
+            echo    [!] 缺少 sql\false_god_task.sql
+        )
+    ) else (
+        echo    [OK] 任务/经验表已存在
+    )
 )
 
 rem ---------------- 4. 构建后端 ----------------
@@ -136,7 +170,10 @@ echo    [OK] jar 已就绪
 rem ---------------- 5. 启动后端 ----------------
 echo.
 echo [5/6] 启动后端（Spring Boot :8080）...
-start "false-god-backend" cmd /k ""!JAVA_EXE!" -jar "%JAR%" --server.port=8080"
+rem ---- 清掉可能被 IDE / 宿主进程注入的端口变量，避免 Spring 宽松绑定覆盖配置 ----
+set "SERVER__PORT="
+set "SERVER__HOST="
+start "false-god-backend" cmd /k ""!JAVA_EXE!" -jar "%JAR%" --server.port=8080 --server.address=0.0.0.0"
 
 echo      等待后端就绪...
 set /a TRY=0
@@ -180,13 +217,13 @@ echo.
 echo  ============================================================
 echo    启动完成  觉醒伪神：神明弃我，我自为神
 echo  ------------------------------------------------------------
-echo    前端   : http://localhost:5173
-echo    后端   : http://localhost:8080
+echo    前端   : http://192.168.68.63:5173
+echo    后端   : http://192.168.68.63:8080
 echo    测试号 : chenhaoyu / 123456
 echo    停止   : 双击 stop-all.bat
 echo  ============================================================
 echo.
-start "" http://localhost:5173
+start "" http://192.168.68.63:5173
 ping -n 4 127.0.0.1 >nul
 exit /b 0
 

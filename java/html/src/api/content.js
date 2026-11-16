@@ -6,6 +6,7 @@
  *   GET /api/arena/matches -> 镇兽大比赛程
  *   GET /api/guild         -> { info, members } 公会简报 + 成员
  *   GET /api/rank          -> 战力榜（战力倒序）
+ *   GET /api/home          -> { notices: [{tag,title,time}], warehouse: [{name,count,rarity}] }
  */
 
 import { getSession } from './session.js'

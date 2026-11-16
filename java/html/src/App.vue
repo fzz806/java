@@ -237,4 +237,11 @@ onMounted(async () => {
 }
 .statusbar .guild { color: #b3a892; }
 .statusbar .guild b { color: var(--c1); font-weight: normal; transition: color .8s; }
+
+/* 窄屏：两块信息挤在同一行会互相贴住，只留更强的左侧评定徽记 */
+@media (max-width: 560px) {
+  .statusbar { padding: 12px 16px; font-size: 11px; letter-spacing: .16em; }
+  .statusbar .guild { display: none; }
+  .statusbar .talent { padding: 4px 8px 4px 10px; }
+}
 </style>
