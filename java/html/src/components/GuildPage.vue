@@ -24,6 +24,11 @@ async function load() {
 function initial(name) {
   return name ? name.slice(0, 1) : '？'
 }
+
+/** 后端已把玩家并入名册并标 self；昵称匹配只作旧数据兜底 */
+function isSelf(m) {
+  return m.self === true || (me && m.name === me)
+}
 </script>
 
 <template>
@@ -55,10 +60,10 @@ function initial(name) {
       <section class="card-panel">
         <h3>在 册 恶 鬼</h3>
         <div class="member-list">
-          <div v-for="m in members" :key="m.id" class="member" :class="{ mine: m.name === me }">
+          <div v-for="m in members" :key="m.id" class="member" :class="{ mine: isSelf(m) }">
             <span class="avatar">{{ initial(m.name) }}</span>
             <div class="mem-main">
-              <span class="mem-name">{{ m.name }}<i class="mem-role">{{ m.role }}</i><i v-if="m.name === me" class="mem-me">我</i></span>
+              <span class="mem-name">{{ m.name }}<i class="mem-role">{{ m.role }}</i><i v-if="isSelf(m)" class="mem-me">我</i></span>
               <span class="mem-desc">{{ m.bio }}</span>
               <span class="mem-sub">{{ m.element }} · {{ m.realm }}</span>
             </div>

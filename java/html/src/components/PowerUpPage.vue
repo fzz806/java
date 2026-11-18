@@ -142,7 +142,7 @@ const powerText = computed(() =>
                 <span v-if="gainTip" class="p-gain">+{{ gainTip }}</span>
               </transition>
             </div>
-            <span class="p-seal">凭 · 野生红印 {{ data.seal }} 重</span>
+            <span class="p-seal">凭 · 野生红印 · 小境界「{{ data.stageName }}」</span>
           </div>
 
           <!-- 境界阶梯 -->
@@ -165,7 +165,7 @@ const powerText = computed(() =>
               </div>
               <div class="r-track"><div class="r-fill" :style="{ width: spiritPercent + '%' }"></div></div>
             </div>
-            <div class="res-item"><span class="r-name">红印</span><b>{{ data.seal }}</b><i>/ {{ data.sealMax }} 重</i></div>
+            <div class="res-item"><span class="r-name">小境界</span><b>{{ data.stageName }}</b><i>{{ data.realmLevel }} / {{ data.realmMax }} 档</i></div>
             <div class="res-item"><span class="r-name">神技</span><b>{{ data.skills }}</b><i>式</i></div>
             <div class="res-item"><span class="r-name">本源</span><b>{{ data.essence }}</b><i>枚</i></div>
           </div>

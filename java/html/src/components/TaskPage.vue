@@ -11,6 +11,14 @@ function canGo(t) {
   return t.status === 'doing' && GO_ACTIONS.includes(t.action)
 }
 
+/**
+ * 每日额度只约束日课（日课池 10 条，做满即用尽）。
+ * 主线是一次性功业，不占额度，因此不能用 limitReached 拦它。
+ */
+function isQuotaBlocked(t) {
+  return t.category !== 'main' && !!data.value && data.value.limitReached
+}
+
 function onTaskClick(t) {
   if (t.status === 'claimable') {
     claim(t)
@@ -23,7 +31,7 @@ function btnText(t) {
   if (busyId.value === t.id) return '结 算 中'
   if (t.status === 'claimed') return '已 领 取'
   if (t.status === 'claimable') {
-    return data.value && data.value.limitReached ? '额 度 已 满' : '领 取 经 验'
+    return isQuotaBlocked(t) ? '额 度 已 满' : '领 取 经 验'
   }
   return canGo(t) ? '去 完 成' : '进 行 中'
 }
@@ -98,9 +106,9 @@ async function load() {
 
 async function claim(t) {
   if (busyId.value || t.status !== 'claimable') return
-  // 额度是独立一层限制：任务达标但今日额度用尽，前端先挡一次，后端也会拒
-  if (data.value && data.value.limitReached) {
-    showToast(`今日已领 ${data.value.claimedToday} 个任务，明日再来`)
+  // 额度是独立一层限制：日课达标但今日额度用尽，前端先挡一次，后端也会拒
+  if (isQuotaBlocked(t)) {
+    showToast(`今日日课已领 ${data.value.claimedToday} 个，明日再来`)
     return
   }
   busyId.value = t.id
@@ -189,10 +197,10 @@ const nextHint = computed(() => {
           <div class="track"><div class="fill" :style="{ width: data.percent + '%' }"></div></div>
           <span class="exp-total">累计所得 {{ data.totalExp }} 点 · 阶位上限 Lv.{{ data.levelMax }}</span>
           <span class="quota" :class="{ done: data.limitReached }">
-            今日领取额度
+            今日日课额度
             <b>{{ data.claimedToday }} / {{ data.claimLimit }}</b>
-            <em v-if="data.limitReached">已用尽 · 明日零点恢复</em>
-            <em v-else>还可领 {{ data.remainingClaim }} 个任务</em>
+            <em v-if="data.limitReached">已领满 {{ data.claimLimit }} 条 · 明日零点恢复</em>
+            <em v-else>还可领 {{ data.remainingClaim }} 条日课</em>
           </span>
         </div>
 
@@ -220,7 +228,7 @@ const nextHint = computed(() => {
       <section class="group">
         <h3>
           日 课
-          <span class="g-sub">每日重置 · 全清可得 {{ dailyExp }} 点经验</span>
+          <span class="g-sub">每日重置 · 共 {{ dailyTasks.length }} 条 · 全清可得 {{ dailyExp }} 点经验</span>
         </h3>
         <div class="grid">
           <article v-for="t in dailyTasks" :key="t.id" class="task" :class="t.status">
@@ -236,7 +244,7 @@ const nextHint = computed(() => {
             <button
               class="t-btn"
               :class="{ go: canGo(t) }"
-              :disabled="busyId === t.id || (t.status !== 'claimable' && !canGo(t)) || (t.status === 'claimable' && data.limitReached)"
+              :disabled="busyId === t.id || (t.status !== 'claimable' && !canGo(t)) || (t.status === 'claimable' && isQuotaBlocked(t))"
               @click="onTaskClick(t)"
             >
               {{ btnText(t) }}
@@ -250,7 +258,7 @@ const nextHint = computed(() => {
       <section class="group">
         <h3>
           主 线
-          <span class="g-sub">一次成就 · 不随日重置 · 共 {{ mainExp }} 点经验</span>
+          <span class="g-sub">一次成就 · 不随日重置 · 不占日课额度 · 共 {{ mainExp }} 点经验</span>
         </h3>
         <div class="grid">
           <article v-for="t in mainTasks" :key="t.id" class="task main-task" :class="t.status">
@@ -266,7 +274,7 @@ const nextHint = computed(() => {
             <button
               class="t-btn"
               :class="{ go: canGo(t) }"
-              :disabled="busyId === t.id || (t.status !== 'claimable' && !canGo(t)) || (t.status === 'claimable' && data.limitReached)"
+              :disabled="busyId === t.id || (t.status !== 'claimable' && !canGo(t)) || (t.status === 'claimable' && isQuotaBlocked(t))"
               @click="onTaskClick(t)"
             >
               {{ btnText(t) }}
@@ -289,7 +297,7 @@ const nextHint = computed(() => {
         <p v-if="!data.logs.length" class="logs-empty">尚无经验 · 从第一份日课开始</p>
       </section>
 
-      <p class="tip-line">任务进度由实际修行推进：淬炼红印、突破境界、静修、吞噬本源、掠夺神技，皆记功业。</p>
+      <p class="tip-line">任务进度由实际修行推进：精进小境界、突破大境界、静修、吞噬本源、掠夺神技，皆记功业。</p>
     </template>
 
     <!-- ============ 阶位晋升动画 ============ -->

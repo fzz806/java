@@ -19,8 +19,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE IF NOT EXISTS `t_power` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
   `user_id` bigint NOT NULL COMMENT '所属用户 t_user.id',
-  `realm_index` int NOT NULL DEFAULT 0 COMMENT '境界序号，0 起，对应 RealmNames（一印..九印）',
-  `seal` int NOT NULL DEFAULT 0 COMMENT '当前境界内的红印重数 0-9，满 9 可突破',
+  `realm_index` int NOT NULL DEFAULT 0 COMMENT '大境界序号 0 起：0-7 一印~八印，8 半神，9 真神',
+  `stage` int NOT NULL DEFAULT 0 COMMENT '大境界内小境界 0-3：初印/中印/圆满/巅峰（半神为初阶/中阶/圆满/巅峰）',
   `spirit` int NOT NULL DEFAULT 0 COMMENT '当前灵能',
   `spirit_max` int NOT NULL DEFAULT 2000 COMMENT '灵能上限',
   `skills` int NOT NULL DEFAULT 0 COMMENT '已习神技数',
@@ -29,6 +29,20 @@ CREATE TABLE IF NOT EXISTS `t_power` (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_user`(`user_id` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '伪神殿 · 用户战力档案' ROW_FORMAT = DYNAMIC;
+
+-- 兼容旧库：把历史的 seal（红印 0-9 重）改成 stage（小境界 0-3 档）
+-- 已有 stage 列则跳过；改完把越界的重数折算进 0-3 档，不会丢档案
+SET @has_stage := (SELECT COUNT(*) FROM information_schema.COLUMNS
+                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_power' AND COLUMN_NAME = 'stage');
+SET @has_seal := (SELECT COUNT(*) FROM information_schema.COLUMNS
+                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_power' AND COLUMN_NAME = 'seal');
+SET @mig := IF(@has_stage = 0 AND @has_seal = 1,
+    'ALTER TABLE `t_power` CHANGE COLUMN `seal` `stage` int NOT NULL DEFAULT 0 COMMENT ''大境界内小境界 0-3：初印/中印/圆满/巅峰''',
+    'DO 0');
+PREPARE mig FROM @mig;
+EXECUTE mig;
+DEALLOCATE PREPARE mig;
+UPDATE `t_power` SET `stage` = LEAST(3, FLOOR(`stage` / 3)) WHERE `stage` > 3;
 
 -- ----------------------------
 -- 战力提升记录（前端「提升记录」列表，按时间倒序取最近若干条）

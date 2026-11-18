@@ -21,19 +21,29 @@ export const loreTabs = [
 
 /* ================= 一、修为等级 =================
  * 凡人 → 一印 ~ 八印【天锁八印】 → 半神 → 真神（自封之神）
+ * 每级大境界内再分 4 档小境界，逐档递进：
+ *   印级：初印 → 中印 → 圆满 → 巅峰
+ *   半神：初阶 → 中阶 → 圆满 → 巅峰
+ *   真神：自封之神（终局，不再细分）
  */
+
+/** 印级小境界（一印~八印通用） */
+const SEAL_STAGES = ['初印', '中印', '圆满', '巅峰']
+/** 半神小境界 */
+const HALF_STAGES = ['初阶', '中阶', '圆满', '巅峰']
+
 export const realms = [
-  { name: '凡人', tier: '凡阶', desc: '尚未觉醒，未铸神印', mark: '' },
-  { name: '一印', tier: '初启', desc: '烙下第一枚神印，踏入修行', mark: '' },
-  { name: '二印', tier: '渐深', desc: '双印共鸣，可施展基础神技', mark: '' },
-  { name: '三印', tier: '立足', desc: '三印之躯，小镇之地已可称强者', mark: '' },
-  { name: '四印', tier: '成名', desc: '四印圆满，权贵门阀的入场门槛', mark: '' },
-  { name: '五印', tier: '一方', desc: '五印威压，足以坐镇一城', mark: '' },
-  { name: '六印', tier: '擎天', desc: '六印强者，神堂名录在册', mark: '' },
-  { name: '七印', tier: '传说', desc: '七印之境，寻常岁月难以企及', mark: '' },
-  { name: '八印', tier: '禁忌', desc: '天锁八印，肉身即神狱，凡躯锁天门', mark: '天锁八印' },
-  { name: '半神', tier: '临神', desc: '半步神域，只差最后一场造化', mark: '' },
-  { name: '真神', tier: '终极', desc: '不受神堂册封，自己给自己的神格', mark: '自封之神' }
+  { name: '凡人', tier: '凡阶', desc: '尚未觉醒，未铸神印', stages: [] },
+  { name: '一印', tier: '初启', desc: '烙下第一枚神印，踏入修行', stages: SEAL_STAGES },
+  { name: '二印', tier: '渐深', desc: '双印共鸣，可施展基础神技', stages: SEAL_STAGES },
+  { name: '三印', tier: '立足', desc: '三印之躯，小镇之地已可称强者', stages: SEAL_STAGES },
+  { name: '四印', tier: '成名', desc: '四印圆满，权贵门阀的入场门槛', stages: SEAL_STAGES },
+  { name: '五印', tier: '一方', desc: '五印威压，足以坐镇一城', stages: SEAL_STAGES },
+  { name: '六印', tier: '擎天', desc: '六印强者，神堂名录在册', stages: SEAL_STAGES },
+  { name: '七印', tier: '传说', desc: '七印之境，寻常岁月难以企及', stages: SEAL_STAGES },
+  { name: '八印', tier: '禁忌', desc: '天锁八印，肉身即神狱，凡躯锁天门', mark: '天锁八印', stages: SEAL_STAGES },
+  { name: '半神', tier: '临神', desc: '半步神域，只差最后一场造化', stages: HALF_STAGES },
+  { name: '真神', tier: '终极', desc: '不受神堂册封，自己给自己的神格', mark: '自封之神', stages: ['自封之神'] }
 ]
 
 /* ================= 二、元素 & 异能体系 ================= */

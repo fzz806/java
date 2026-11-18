@@ -210,7 +210,7 @@ class TaskServiceTest {
     // ==================== 每日领取额度 ====================
 
     @Test
-    @DisplayName("今日已领满 10 个时拒绝领取，且不改任务状态、不写经验")
+    @DisplayName("今日日课已领满 10 条时拒绝领取，且不改任务状态、不写经验")
     void claimRejectedWhenDailyLimitReached() {
         when(taskMapper.selectById(1L)).thenReturn(task(1L, "daily_login", "daily", "login", 1, 40));
         when(userTaskMapper.selectOne(any())).thenReturn(row(1L, 1, null));
@@ -219,10 +219,27 @@ class TaskServiceTest {
         TaskService.ClaimOutcome r = service.claim(UID, 1L);
 
         assertFalse(r.isOk());
-        assertTrue(r.getMessage().contains("上限"), r.getMessage());
+        assertTrue(r.getMessage().contains("已领满"), r.getMessage());
         verify(userTaskMapper, never()).update(any(), any());
         verify(userExpMapper, never()).updateById(any(UserExp.class));
         verify(expLogMapper, never()).insert(any(ExpLog.class));
+    }
+
+    @Test
+    @DisplayName("日课额度用尽不影响主线：主线是一次性功业，不占额度")
+    void mainClaimIgnoresDailyLimit() {
+        when(taskMapper.selectById(1L)).thenReturn(task(1L, "main_realm", "main", "realm", 1, 200));
+        when(taskMapper.selectList(any())).thenReturn(List.of());
+        when(userTaskMapper.selectOne(any())).thenReturn(row(1L, 1, null));
+        // 今天日课额度已经领满 10 条
+        when(userTaskMapper.selectCount(any())).thenReturn(10L);
+        when(userTaskMapper.update(any(), any())).thenReturn(1);
+        when(userExpMapper.selectOne(any())).thenReturn(exp(0));
+
+        TaskService.ClaimOutcome r = service.claim(UID, 1L);
+
+        assertTrue(r.isOk(), r.getMessage());
+        assertEquals(200, r.getData().get("gain"));
     }
 
     @Test

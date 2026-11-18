@@ -14,10 +14,15 @@ import java.util.Map;
 
 /**
  * 战力接口，路径与前端 src/api/power.js 保持一致：
- *   GET  /api/power           -> { power, realm, nextRealm, realmLevel, realmMax,
+ *   GET  /api/power           -> { power, realm, realmName, realmMark,
+ *                                 stage, stageName, stageMax, nextRealm,
+ *                                 realmLevel, realmMax,
  *                                 spirit, spiritMax, seal, sealMax, skills, essence,
  *                                 actions: [...], logs: [...] }
  *   POST /api/power/upgrade   -> { panel: {...}, gain: number, looted?: {...} }
+ *
+ * <p>境界体系：大境界（一印~八印【天锁八印】、半神、真神）× 小境界
+ * （初印/中印/圆满/巅峰，半神为初阶/中阶/圆满/巅峰；真神不细分）。
  *
  * <p>位于 /api/** 下，受 AuthInterceptor 保护，需携带 Bearer token；
  * 当前用户由拦截器写入的 request attribute 提供。

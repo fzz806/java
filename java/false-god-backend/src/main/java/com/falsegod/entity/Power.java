@@ -12,6 +12,9 @@ import java.time.LocalDateTime;
  * <p>每个用户一行，首次访问 /api/power 时惰性建档。
  * 综合战力不落库，由 {@code PowerService#calcPower} 按各维度实时推导，
  * 避免多个地方各自写数字导致对不上。
+ *
+ * <p>境界分两轴：{@code realmIndex} 是大境界序号（一印~八印、半神、真神），
+ * {@code stage} 是该大境界内的小境界序号（初印/中印/圆满/巅峰）。
  */
 @TableName("t_power")
 public class Power {
@@ -22,11 +25,11 @@ public class Power {
     /** 所属用户 t_user.id */
     private Long userId;
 
-    /** 境界序号，0 起，对应 PowerService.REALMS */
+    /** 大境界序号，0 起，对应 PowerService.REALMS（一印..八印、半神、真神） */
     private Integer realmIndex;
 
-    /** 当前境界内的红印重数 0-9，满 9 可突破 */
-    private Integer seal;
+    /** 大境界内的小境界序号 0-3：初印/中印/圆满/巅峰（半神为初阶/中阶/圆满/巅峰） */
+    private Integer stage;
 
     /** 当前灵能 */
     private Integer spirit;
@@ -67,12 +70,12 @@ public class Power {
         this.realmIndex = realmIndex;
     }
 
-    public Integer getSeal() {
-        return seal;
+    public Integer getStage() {
+        return stage;
     }
 
-    public void setSeal(Integer seal) {
-        this.seal = seal;
+    public void setStage(Integer stage) {
+        this.stage = stage;
     }
 
     public Integer getSpirit() {

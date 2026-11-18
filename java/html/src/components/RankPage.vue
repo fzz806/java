@@ -22,6 +22,11 @@ async function load() {
 // 前端计算名次（后端已按战力倒序返回）
 const ranked = computed(() => members.value.map((m, i) => ({ ...m, rank: i + 1 })))
 
+// 后端会把当前玩家并入榜单并标 self=true；旧数据没有该字段时回退按昵称判断
+function isSelf(m) {
+  return m.self === true || (me && m.name === me)
+}
+
 const top = computed(() => ranked.value.slice(0, 3))
 const rest = computed(() => ranked.value.slice(3))
 </script>
@@ -43,10 +48,10 @@ const rest = computed(() => ranked.value.slice(3))
           v-for="m in top"
           :key="m.id"
           class="podium-card"
-          :class="['p' + m.rank, { mine: m.name === me }]"
+          :class="['p' + m.rank, { mine: isSelf(m) }]"
         >
           <span class="rank-badge">{{ m.rank }}</span>
-          <span class="p-name">{{ m.name }}<i v-if="m.name === me" class="me-tag">我</i></span>
+          <span class="p-name">{{ m.name }}<i v-if="isSelf(m)" class="me-tag">我</i></span>
           <span class="p-role">{{ m.role }} · {{ m.realm }}</span>
           <span class="p-power">{{ m.power }}<i>点</i></span>
         </div>
@@ -54,10 +59,10 @@ const rest = computed(() => ranked.value.slice(3))
 
       <!-- 其余名次 -->
       <div class="rank-list">
-        <div v-for="m in rest" :key="m.id" class="rank-row" :class="{ mine: m.name === me }">
+        <div v-for="m in rest" :key="m.id" class="rank-row" :class="{ mine: isSelf(m) }">
           <span class="r-no">{{ m.rank }}</span>
           <div class="r-main">
-            <span class="r-name">{{ m.name }}<i class="r-role">{{ m.role }}</i><i v-if="m.name === me" class="me-tag">我</i></span>
+            <span class="r-name">{{ m.name }}<i class="r-role">{{ m.role }}</i><i v-if="isSelf(m)" class="me-tag">我</i></span>
             <span class="r-sub">{{ m.element }} · {{ m.realm }} · {{ m.bio }}</span>
           </div>
           <span class="r-power">{{ m.power }}</span>

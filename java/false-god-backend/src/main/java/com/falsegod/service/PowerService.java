@@ -24,14 +24,22 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * <p>数值模型（两轴推进）：
  * <ul>
- *   <li><b>境界</b> realmIndex — 一印到九印，共 9 阶</li>
- *   <li><b>红印</b> seal — 当前境界内的重数 0-9，满 9 才能突破</li>
+ *   <li><b>大境界</b> realmIndex — 一印 → 八印【天锁八印】 → 半神 → 真神（自封之神），共 10 阶</li>
+ *   <li><b>小境界</b> stage — 每阶内 4 档，需逐档递进：
+ *     <ul>
+ *       <li>一印~八印：初印 → 中印 → 圆满 → 巅峰</li>
+ *       <li>半神：初阶 → 中阶 → 圆满 → 巅峰</li>
+ *       <li>真神（自封之神）：终点位格，不再细分</li>
+ *     </ul>
+ *   </li>
  * </ul>
+ *
+ * <p>小境界臻至巅峰（最后一档）方可冲击大境界壁垒；真神为终局，无可再破。
  *
  * <p>综合战力不落库，由 {@link #calcPower} 实时推导，
  * 保证「面板数字」「提升增量」「战力榜名次」三处永远一致。
  *
- * <p>初始档案的战力刻意贴着 t_member 榜首（陈昊宇 4120），
+ * <p>初始档案为四印·圆满（战力 3940），刻意贴着 t_member 榜首（陈昊宇 4120），
  * 让首页「战力榜第 2」与剧情设定对得上，练几次即可反超。
  */
 @Service
@@ -39,11 +47,28 @@ public class PowerService {
 
     private static final Logger log = LoggerFactory.getLogger(PowerService.class);
 
-    /** 境界阶梯：满 9 重红印后突破到下一印 */
-    private static final String[] REALMS = {"一印", "二印", "三印", "四印", "五印", "六印", "七印", "八印", "九印"};
+    /** 大境界阶梯：一印 → 八印【天锁八印】 → 半神 → 真神（自封之神） */
+    private static final String[] REALMS = {
+            "一印", "二印", "三印", "四印", "五印",
+            "六印", "七印", "八印", "半神", "真神"
+    };
 
-    /** 每个境界内的红印重数上限 */
-    private static final int REALM_MAX = 9;
+    /** 大境界别称：八印锁天、真神自封，其余留空 */
+    private static final String[] REALM_MARKS = {
+            "", "", "", "", "", "", "", "天锁八印", "", "自封之神"
+    };
+
+    /** 印级（一印~八印）的小境界 */
+    private static final String[] STAGES_SEAL = {"初印", "中印", "圆满", "巅峰"};
+
+    /** 半神的小境界 */
+    private static final String[] STAGES_HALF = {"初阶", "中阶", "圆满", "巅峰"};
+
+    /** 真神只有一个位格 */
+    private static final String[] STAGES_TRUE_GOD = {"自封之神"};
+
+    /** 每个大境界内的小境界档数（真神除外） */
+    private static final int STAGE_MAX = 4;
 
     /** 灵能上限与静修回复量 */
     private static final int SPIRIT_MAX = 2000;
@@ -55,9 +80,9 @@ public class PowerService {
     private static final int COST_SKILL = 1200;
     private static final int COST_ESSENCE = 400;
 
-    /** 战力权重：突破 +800、红印 +40、神技 +140、本源 +40 */
+    /** 战力权重：大境界 +800、小境界 +120、神技 +140、本源 +40 */
     private static final int W_REALM = 800;
-    private static final int W_SEAL = 40;
+    private static final int W_STAGE = 120;
     private static final int W_SKILL = 140;
     private static final int W_ESSENCE = 40;
 
@@ -92,6 +117,7 @@ public class PowerService {
      *
      * @param userId 当前登录用户
      * @param type   realm | seal | skill | essence | rest
+     *               （seal 为历史动作键，语义已变为「小境界精进」，保留以兼容任务配置）
      */
     public UpgradeOutcome upgrade(Long userId, String type) {
         if (type == null || type.isBlank()) {
@@ -100,6 +126,9 @@ public class PowerService {
         Power p = loadOrCreate(userId);
         int before = calcPower(p);
 
+        int realmIndex = nz(p.getRealmIndex());
+        int stage = nz(p.getStage());
+
         String logText;
         int spiritCost;
         Map<String, Object> looted = null;
@@ -107,33 +136,37 @@ public class PowerService {
         switch (type) {
             case "seal" -> {
                 spiritCost = COST_SEAL;
-                if (p.getSeal() >= REALM_MAX) {
-                    return UpgradeOutcome.fail("红印已满 " + REALM_MAX + " 重，请先突破境界");
+                if (isTrueGod(realmIndex)) {
+                    return UpgradeOutcome.fail("已至真神（自封之神），再无境界可精进");
                 }
-                if (p.getSpirit() < spiritCost) {
+                if (stage >= STAGE_MAX - 1) {
+                    return UpgradeOutcome.fail("小境界已至"
+                            + stageName(realmIndex, stage) + "，请先突破大境界");
+                }
+                if (nz(p.getSpirit()) < spiritCost) {
                     return UpgradeOutcome.fail("灵能不足，需要 " + spiritCost + " 点");
                 }
-                p.setSeal(p.getSeal() + 1);
-                logText = "红印淬炼 · 第 " + p.getSeal() + " 重已成";
+                p.setStage(stage + 1);
+                logText = "小境界精进 · 踏入「" + stageName(realmIndex, stage + 1) + "」";
             }
             case "realm" -> {
                 spiritCost = COST_REALM;
-                if (p.getRealmIndex() >= REALMS.length - 1) {
-                    return UpgradeOutcome.fail("已至九印，境界无可再破");
+                if (isTrueGod(realmIndex)) {
+                    return UpgradeOutcome.fail("已至真神，境界无可再破");
                 }
-                if (p.getSeal() < REALM_MAX) {
-                    return UpgradeOutcome.fail("红印未满 " + REALM_MAX + " 重，无法冲击境界壁垒");
+                if (stage < STAGE_MAX - 1) {
+                    return UpgradeOutcome.fail("小境界未至巅峰，无法冲击境界壁垒");
                 }
-                if (p.getSpirit() < spiritCost) {
+                if (nz(p.getSpirit()) < spiritCost) {
                     return UpgradeOutcome.fail("灵能不足，需要 " + spiritCost + " 点");
                 }
-                p.setRealmIndex(p.getRealmIndex() + 1);
-                p.setSeal(0);
-                logText = "境界突破 · 踏入 " + realmName(p.getRealmIndex());
+                p.setRealmIndex(realmIndex + 1);
+                p.setStage(0);
+                logText = "境界突破 · 踏入 " + fullRealm(realmIndex + 1, 0);
             }
             case "skill" -> {
                 spiritCost = COST_SKILL;
-                if (p.getSpirit() < spiritCost) {
+                if (nz(p.getSpirit()) < spiritCost) {
                     return UpgradeOutcome.fail("灵能不足，需要 " + spiritCost + " 点");
                 }
                 Skill loot = randomSkill();
@@ -147,23 +180,23 @@ public class PowerService {
                 } else {
                     logText = "掠夺神技 · 得残缺一式";
                 }
-                p.setSkills(p.getSkills() + 1);
+                p.setSkills(nz(p.getSkills()) + 1);
             }
             case "essence" -> {
                 spiritCost = COST_ESSENCE;
-                if (p.getSpirit() < spiritCost) {
+                if (nz(p.getSpirit()) < spiritCost) {
                     return UpgradeOutcome.fail("灵能不足，需要 " + spiritCost + " 点");
                 }
-                p.setEssence(p.getEssence() + 1);
+                p.setEssence(nz(p.getEssence()) + 1);
                 logText = "本源吞噬 · 第 " + p.getEssence() + " 枚归位";
             }
             case "rest" -> {
                 spiritCost = 0;
-                if (p.getSpirit() >= p.getSpiritMax()) {
+                if (nz(p.getSpirit()) >= nz(p.getSpiritMax())) {
                     return UpgradeOutcome.fail("灵能已满，无需静修");
                 }
-                int after = Math.min(p.getSpiritMax(), p.getSpirit() + REST_SPIRIT);
-                int real = after - p.getSpirit();
+                int after = Math.min(nz(p.getSpiritMax()), nz(p.getSpirit()) + REST_SPIRIT);
+                int real = after - nz(p.getSpirit());
                 p.setSpirit(after);
                 logText = "静修 · 灵能回聚 +" + real;
             }
@@ -173,7 +206,7 @@ public class PowerService {
         }
 
         // 扣灵能并落库
-        p.setSpirit(Math.max(0, p.getSpirit() - spiritCost));
+        p.setSpirit(Math.max(0, nz(p.getSpirit()) - spiritCost));
         p.setUpdatedAt(LocalDateTime.now());
         powerMapper.updateById(p);
 
@@ -201,33 +234,99 @@ public class PowerService {
 
     // ==================== 内部实现 ====================
 
-    /** 综合战力：境界为主，红印/神技/本源为辅 */
+    /** 综合战力：大境界为主，小境界/神技/本源为辅 */
     private int calcPower(Power p) {
-        return p.getRealmIndex() * W_REALM
-                + p.getSeal() * W_SEAL
-                + p.getSkills() * W_SKILL
-                + p.getEssence() * W_ESSENCE;
+        return nz(p.getRealmIndex()) * W_REALM
+                + nz(p.getStage()) * W_STAGE
+                + nz(p.getSkills()) * W_SKILL
+                + nz(p.getEssence()) * W_ESSENCE;
     }
 
-    private String realmName(int index) {
-        int i = Math.max(0, Math.min(index, REALMS.length - 1));
-        return REALMS[i];
+    /** 大境界下标收敛到合法区间 */
+    private int clampRealm(int index) {
+        return Math.max(0, Math.min(index, REALMS.length - 1));
+    }
+
+    /** 是否已至终局「真神」 */
+    private boolean isTrueGod(int realmIndex) {
+        return clampRealm(realmIndex) >= REALMS.length - 1;
+    }
+
+    /** 该大境界的小境界名册 */
+    private String[] stagesOf(int realmIndex) {
+        int ri = clampRealm(realmIndex);
+        if (isTrueGod(ri)) {
+            return STAGES_TRUE_GOD;
+        }
+        if (ri == REALMS.length - 2) {   // 半神
+            return STAGES_HALF;
+        }
+        return STAGES_SEAL;
+    }
+
+    /** 大境界名，如「四印」 */
+    private String realmName(int realmIndex) {
+        return REALMS[clampRealm(realmIndex)];
+    }
+
+    /** 小境界名，如「圆满」 */
+    private String stageName(int realmIndex, int stage) {
+        String[] stages = stagesOf(realmIndex);
+        int i = Math.max(0, Math.min(stage, stages.length - 1));
+        return stages[i];
+    }
+
+    /** 完整境界名：「四印 · 圆满」「八印【天锁八印】 · 巅峰」「真神（自封之神）」 */
+    private String fullRealm(int realmIndex, int stage) {
+        int ri = clampRealm(realmIndex);
+        String base = REALMS[ri];
+        String mark = REALM_MARKS[ri];
+        if (mark != null && !mark.isEmpty()) {
+            base = isTrueGod(ri) ? base + "（" + mark + "）" : base + "【" + mark + "】";
+        }
+        if (isTrueGod(ri)) {
+            return base;
+        }
+        return base + " · " + stageName(ri, stage);
+    }
+
+    /** 下一档境界名；已至真神则返回终点提示 */
+    private String nextRealm(int realmIndex, int stage) {
+        int ri = clampRealm(realmIndex);
+        if (isTrueGod(ri)) {
+            return "已至真神";
+        }
+        if (stage < STAGE_MAX - 1) {
+            return fullRealm(ri, stage + 1);
+        }
+        return fullRealm(ri + 1, 0);
     }
 
     /** 组装与前端 PowerUpPage.vue 约定一致的面板结构 */
     private Map<String, Object> buildPanel(Power p) {
+        int realmIndex = clampRealm(nz(p.getRealmIndex()));
+        int stage = isTrueGod(realmIndex) ? 0 : Math.min(nz(p.getStage()), STAGE_MAX - 1);
+        int stageMax = stagesOf(realmIndex).length;
+
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("power", calcPower(p));
-        m.put("realm", realmName(p.getRealmIndex()));
-        m.put("nextRealm", realmName(p.getRealmIndex() + 1));
-        m.put("realmLevel", p.getSeal());
-        m.put("realmMax", REALM_MAX);
-        m.put("spirit", p.getSpirit());
-        m.put("spiritMax", p.getSpiritMax());
-        m.put("seal", p.getSeal());
-        m.put("sealMax", REALM_MAX);
-        m.put("skills", p.getSkills());
-        m.put("essence", p.getEssence());
+        m.put("realm", fullRealm(realmIndex, stage));
+        m.put("realmName", realmName(realmIndex));
+        m.put("realmMark", REALM_MARKS[realmIndex]);
+        m.put("stage", stage);
+        m.put("stageName", stageName(realmIndex, stage));
+        m.put("stageMax", stageMax);
+        m.put("nextRealm", nextRealm(realmIndex, stage));
+        // realmLevel / realmMax 供进度条使用：当前处于本大境界第几档 / 共几档
+        m.put("realmLevel", stage + 1);
+        m.put("realmMax", stageMax);
+        m.put("spirit", nz(p.getSpirit()));
+        m.put("spiritMax", nz(p.getSpiritMax()));
+        // seal / sealMax 为旧字段别名，保持前端向后兼容
+        m.put("seal", stage);
+        m.put("sealMax", stageMax);
+        m.put("skills", nz(p.getSkills()));
+        m.put("essence", nz(p.getEssence()));
         m.put("actions", buildActions(p));
         m.put("logs", recentLogs(p.getUserId()));
         return m;
@@ -235,28 +334,34 @@ public class PowerService {
 
     /** 五条提升途径；available 由当前资源实时判定，前端据此置灰按钮 */
     private List<Map<String, Object>> buildActions(Power p) {
+        int realmIndex = clampRealm(nz(p.getRealmIndex()));
+        int stage = nz(p.getStage());
+        boolean trueGod = isTrueGod(realmIndex);
+        String ladder = String.join(" → ", stagesOf(realmIndex));
+
         List<Map<String, Object>> list = new ArrayList<>();
         list.add(action("realm", "境界突破",
-                "以灵能冲击印级壁垒，红印满 " + REALM_MAX + " 重方可叩关，破则踏入下一印。",
-                W_REALM - REALM_MAX * W_SEAL, COST_REALM,
-                "境界 +1", p.getRealmIndex() < REALMS.length - 1
-                        && p.getSeal() >= REALM_MAX && p.getSpirit() >= COST_REALM));
-        list.add(action("seal", "红印淬炼",
-                "反复锤打野生红印，每成一重，战力随印纹一同攀升。",
-                W_SEAL, COST_SEAL,
-                "红印 +1 重", p.getSeal() < REALM_MAX && p.getSpirit() >= COST_SEAL));
+                "以灵能冲击大境界壁垒，小境界臻至巅峰方可叩关，破则踏入下一境。",
+                W_REALM - (STAGE_MAX - 1) * W_STAGE, COST_REALM,
+                "大境界 +1",
+                !trueGod && stage >= STAGE_MAX - 1 && nz(p.getSpirit()) >= COST_REALM));
+        list.add(action("seal", "小境界精进",
+                "反复打磨己身，小境界层层递进：" + ladder + "。",
+                W_STAGE, COST_SEAL,
+                "小境界 +1 档",
+                !trueGod && stage < STAGE_MAX - 1 && nz(p.getSpirit()) >= COST_SEAL));
         list.add(action("skill", "掠夺神技",
                 "从败者身上剥离一式神技，据为己有。",
                 W_SKILL, COST_SKILL,
-                "神技 +1 式", p.getSpirit() >= COST_SKILL));
+                "神技 +1 式", nz(p.getSpirit()) >= COST_SKILL));
         list.add(action("essence", "本源吞噬",
                 "吞下本源结晶，将他人道果炼入己身。",
                 W_ESSENCE, COST_ESSENCE,
-                "本源 +1 枚", p.getSpirit() >= COST_ESSENCE));
+                "本源 +1 枚", nz(p.getSpirit()) >= COST_ESSENCE));
         list.add(action("rest", "静修",
                 "端坐废殿，缓慢回聚灵能。不增战力，却是唯一无耗之举。",
                 0, 0,
-                "灵能 +" + REST_SPIRIT, p.getSpirit() < p.getSpiritMax()));
+                "灵能 +" + REST_SPIRIT, nz(p.getSpirit()) < nz(p.getSpiritMax())));
         return list;
     }
 
@@ -312,7 +417,7 @@ public class PowerService {
     /**
      * 读取档案，没有就按初始值建一份。
      *
-     * <p>初始值：三印八重、灵能 900/2000、神技 7 式、本源 8 枚 → 战力 4020，
+     * <p>初始值：四印·圆满、灵能 900/2000、神技 7 式、本源 8 枚 → 战力 3940，
      * 略低于战力榜首（4120），练几次即可反超。
      */
     private Power loadOrCreate(Long userId) {
@@ -320,12 +425,13 @@ public class PowerService {
                 new LambdaQueryWrapper<Power>().eq(Power::getUserId, userId)
         );
         if (p != null) {
+            normalize(p);
             return p;
         }
         p = new Power();
         p.setUserId(userId);
-        p.setRealmIndex(3);
-        p.setSeal(8);
+        p.setRealmIndex(3);   // 四印
+        p.setStage(2);        // 圆满
         p.setSpirit(900);
         p.setSpiritMax(SPIRIT_MAX);
         p.setSkills(7);
@@ -333,6 +439,27 @@ public class PowerService {
         p.setUpdatedAt(LocalDateTime.now());
         powerMapper.insert(p);
         return p;
+    }
+
+    /**
+     * 兼容旧档案：境界下标越界、小境界越界的，收敛回合法区间。
+     * 旧模型（红印 0-9 重）遗留数据在这里被安全折到 0-3 档，不会抛异常。
+     */
+    private void normalize(Power p) {
+        if (p.getRealmIndex() == null || p.getRealmIndex() < 0 || p.getRealmIndex() >= REALMS.length) {
+            p.setRealmIndex(clampRealm(nz(p.getRealmIndex())));
+        }
+        int maxStage = isTrueGod(nz(p.getRealmIndex())) ? 0 : STAGE_MAX - 1;
+        if (p.getStage() == null || p.getStage() < 0 || p.getStage() > maxStage) {
+            p.setStage(Math.max(0, Math.min(nz(p.getStage()), maxStage)));
+        }
+        if (p.getSpiritMax() == null || p.getSpiritMax() <= 0) {
+            p.setSpiritMax(SPIRIT_MAX);
+        }
+    }
+
+    private int nz(Integer v) {
+        return v == null ? 0 : v;
     }
 
     /** 提升结果：成功带数据，失败带人话提示（前端直接弹 toast） */

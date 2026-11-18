@@ -40,8 +40,13 @@ import java.util.Map;
  * <p><b>防重复领取</b>：领取采用「条件更新 + 受影响行数」，
  * 并发双击只有一次能改成 claimed_at，另一次返回已领取。
  *
- * <p><b>每日额度</b>：每天最多领取 {@link #DAILY_CLAIM_LIMIT} 个任务的经验，
- * 日课与主线共用，次日零点自然归零（统计口径是 claimed_at 落在今天）。
+ * <p><b>每日额度</b>：日课池共 10 条，每天最多领取 {@link #DAILY_CLAIM_LIMIT} 个，
+ * 做满 10 条即额度用尽，次日零点自然归零。主线是一次性功业（终身各领一次），
+ * <b>不占额度、也不受额度限制</b>。
+ *
+ * <p>额度口径为「{@code claimed_at} 落在今天且 {@code task_date} = 今天」：
+ * 日课的 task_date 恒为当天，主线的 task_date 固定为 {@link #MAIN_DATE}，
+ * 因此不需要任何额外字段就能把两类分开，也不必联表查 category。
  */
 @Service
 public class TaskService {
@@ -69,11 +74,11 @@ public class TaskService {
     private static final int LOG_LIMIT = 6;
 
     /**
-     * 每日可领取的任务数上限（日课 + 主线共用同一份额度），次日零点自动归零。
+     * 每日可领取的日课数上限（与日课池条数一致），次日零点自动归零。
      *
-     * <p>额度按 {@code claimed_at} 落在今天来统计，所以主线任务虽用固定占位日期，
-     * 只要今天领过也计入当天额度——这样「今天能领几个」与任务类别无关，
-     * 将来往任务池里加任务也不会失控。
+     * <p>只统计日课的领取次数：日课与主线用 task_date 区分（日课=当天，主线=固定占位日期），
+     * 所以「今天能领几个」与主线进度无关。将来往日课池里加任务，
+     * 记得同步这个数字，否则要么提前卡额度、要么额度永远用不完。
      */
     static final int DAILY_CLAIM_LIMIT = 10;
 
@@ -118,7 +123,7 @@ public class TaskService {
             UserTask row = findRow(userId, t.getId(), dateOf(t, today));
             Map<String, Object> m = taskView(t, row);
             String status = (String) m.get("status");
-            boolean daily = !"main".equals(t.getCategory());
+            boolean daily = isDaily(t);
             if (daily) {
                 dailyTotal++;
                 if ("claimed".equals(status)) {
@@ -146,7 +151,7 @@ public class TaskService {
         data.put("dailyClaimed", dailyClaimed);
         data.put("mainTotal", mainTotal);
         data.put("mainClaimed", mainClaimed);
-        // 每日领取额度：日课与主线共用，按「今天领取过几次」统计
+        // 每日额度：只针对日课，按「今天领过几次日课」统计；主线不占额度
         data.put("claimLimit", DAILY_CLAIM_LIMIT);
         data.put("claimedToday", claimedToday);
         data.put("remainingClaim", remaining);
@@ -184,14 +189,15 @@ public class TaskService {
             ue = locked;
         }
 
-        int claimedToday = countClaimedToday(userId);
-        if (claimedToday >= DAILY_CLAIM_LIMIT) {
-            return ClaimOutcome.fail("今日领取已达上限（" + DAILY_CLAIM_LIMIT + " 个任务），明日再来");
-        }
-
         Task task = taskMapper.selectById(taskId);
         if (task == null || task.getEnabled() == null || task.getEnabled() != 1) {
             return ClaimOutcome.fail("任务不存在或已下线");
+        }
+
+        // 每日额度只约束日课（日课池 10 条）；主线是一次性功业，不占额度也不受额度限制。
+        // 先判任务再判额度，是为了别让已下线/不存在的任务被误报成「额度已满」。
+        if (isDaily(task) && countClaimedToday(userId) >= DAILY_CLAIM_LIMIT) {
+            return ClaimOutcome.fail("今日日课已领满（" + DAILY_CLAIM_LIMIT + " 个），明日再来");
         }
 
         LocalDate date = dateOf(task, LocalDate.now());
@@ -318,17 +324,26 @@ public class TaskService {
     }
 
     /**
-     * 今天已经领取过经验的任务数（日课 + 主线一起算）。
+     * 今天已经领取过经验的<b>日课</b>数（主线不算）。
      *
-     * <p>按 {@code claimed_at} 是否落在今天统计，而不是按 {@code task_date}：
-     * 主线任务的 task_date 是固定占位值，只有 claimed_at 能反映「今天领的」。
+     * <p>按 {@code claimed_at} 是否落在今天统计，而不是按 {@code task_date} 跨天比较：
+     * 还要额外限定 {@code task_date = 今天}，因为主线的 task_date 是固定占位值，
+     * 若不加这条，主线领取也会被算进当天额度。日课每天新建一行且日期恒为当天，
+     * 所以「日期=今天 + 今天已领取」正好筛出今天领过的日课。
      */
     int countClaimedToday(Long userId) {
+        LocalDate today = LocalDate.now();
         Long c = userTaskMapper.selectCount(new LambdaQueryWrapper<UserTask>()
                 .eq(UserTask::getUserId, userId)
+                .eq(UserTask::getTaskDate, today)
                 .isNotNull(UserTask::getClaimedAt)
-                .ge(UserTask::getClaimedAt, LocalDate.now().atStartOfDay()));
+                .ge(UserTask::getClaimedAt, today.atStartOfDay()));
         return c == null ? 0 : c.intValue();
+    }
+
+    /** 是否日课：t_task.category 只有 daily / main 两种，非 main 即日课 */
+    private boolean isDaily(Task t) {
+        return !"main".equals(t.getCategory());
     }
 
     private List<Task> listEnabled() {

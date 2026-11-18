@@ -6,6 +6,7 @@
  *                             -> { level, title, nextTitle, exp, expMax, totalExp, percent,
  *                                  levelMax, full, claimable,
  *                                  dailyTotal, dailyClaimed, mainTotal, mainClaimed,
+ *                                  claimLimit, claimedToday, remainingClaim, limitReached,
  *                                  tasks: [{ id, code, title, desc, category, categoryLabel,
  *                                            action, progress, target, exp, status, percent }],
  *                                  logs: [{ time, text, exp }] }
@@ -15,6 +16,10 @@
  * 规则：经验只从任务领取获得；阶位由后端按累计经验推导，前端不自行计算等级。
  * 任务进度由真实操作推进（淬炼/突破/静修/吞噬/掠夺/登临），前端没有任何
  * 「直接完成任务」的入口。
+ *
+ * 每日额度：日课池固定 10 条，claimLimit = 10，每天最多领 10 条日课的经验，
+ * 做满即 limitReached=true，次日零点归零。主线是一次性功业，不占额度、
+ * 也不受 limitReached 限制——所以前端置灰时要按 category 区分，不能一刀切。
  * 失败时 code=400 + 中文提示，页面直接弹 toast。
  *
  * 统一响应：{ code: 0, message: 'ok', data: {...} }

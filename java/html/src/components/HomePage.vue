@@ -51,8 +51,12 @@ async function refreshLive() {
   const [p, r, h, t] = await Promise.all([fetchPower(), fetchRank(), fetchHome(), fetchTask()])
   if (p.code === 0 && p.data) livePower.value = p.data
   if (r.code === 0 && Array.isArray(r.data) && livePower.value) {
+    // 后端已把玩家并入榜单并标 self，直接取它所在名次最准（并列也不出错）
+    const selfIdx = r.data.findIndex((m) => m.self === true)
     const mine = livePower.value.power
-    liveRank.value = r.data.filter((m) => m.power > mine).length + 1
+    liveRank.value = selfIdx >= 0
+      ? selfIdx + 1
+      : r.data.filter((m) => m.power > mine).length + 1
   }
   if (h.code === 0 && h.data) liveHome.value = h.data
   if (t.code === 0 && t.data) applyTaskPanel(t.data)
@@ -60,12 +64,22 @@ async function refreshLive() {
 
 /** 任务面板变化时同步导航徽记（领取后红点立刻消失，不必等回首页） */
 function applyTaskPanel(panel) {
-  // 额度用尽的任务虽然达标，今天也领不了：红点与入口按「实际可领」算，
-  // 达标数量另存一份，用来提示"额度已满"而不是假装没有奖赏
+  // 额度只约束日课：日课达标但今天领不了的不算红点；
+  // 主线的达标随时可领，即使日课额度已满也要计入。
   const reached = !!panel.limitReached
+  const total = panel.claimable || 0
+  const tasks = Array.isArray(panel.tasks) ? panel.tasks : null
+  if (tasks) {
+    const dailyReady = tasks.filter((x) => x.category !== 'main' && x.status === 'claimable').length
+    const mainReady = tasks.filter((x) => x.category === 'main' && x.status === 'claimable').length
+    taskClaimRaw.value = dailyReady + mainReady
+    taskClaimable.value = (reached ? 0 : dailyReady) + mainReady
+  } else {
+    // 兜底：面板没带任务明细时退回旧口径
+    taskClaimRaw.value = total
+    taskClaimable.value = reached ? 0 : total
+  }
   taskLimitReached.value = reached
-  taskClaimRaw.value = panel.claimable || 0
-  taskClaimable.value = reached ? 0 : panel.claimable || 0
   taskLevel.value = panel.level || 0
   taskTitle.value = panel.title || ''
   taskExp.value = panel.exp || 0
@@ -109,7 +123,7 @@ const statList = computed(() => {
   const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
   return stats.map((s) => {
     if (s.label === '综合战力') {
-      return { ...s, value: fmt(p.power), hint: `${p.realm} · 红印 ${p.seal} 重` }
+      return { ...s, value: fmt(p.power), hint: p.realm }
     }
     if (s.label === '已习神技') {
       return { ...s, value: String(p.skills), hint: `灵能 ${p.spirit} / ${p.spiritMax}` }
@@ -134,13 +148,38 @@ function showToast(msg) {
 onBeforeUnmount(() => clearTimeout(toastTimer))
 
 /* ---------------- 页面切换 ---------------- */
-// home = 首页，skill / beast / guild / rank / power = 子页面
-const page = ref('home')
+// 子页面 key 同步到 URL hash（如 #power），刷新与分享都能直达对应页面
+const PAGE_KEYS = ['home', 'skill', 'beast', 'guild', 'rank', 'power', 'task']
+
+function pageFromHash() {
+  const raw = (window.location.hash || '').replace(/^#\/?/, '').trim()
+  return PAGE_KEYS.includes(raw) ? raw : 'home'
+}
+
+// home = 首页，skill / beast / guild / rank / power / task = 子页面
+const page = ref(pageFromHash())
+
+function writeHash(v) {
+  const base = window.location.pathname + window.location.search
+  const want = v === 'home' ? base : `${base}#${v}`
+  const now = window.location.pathname + window.location.search + window.location.hash
+  // 一致就不写，避免浏览器历史里堆重复条目
+  if (now !== want) window.history.pushState(null, '', want)
+}
 
 // 从战力提升页返回时重新拉一次战力，保证数字是最新的
 watch(page, (v) => {
+  writeHash(v)
   if (v === 'home') refreshLive()
 })
+
+// 浏览器前进/后退时，按地址栏 hash 还原页面
+function handlePopState() {
+  page.value = pageFromHash()
+}
+
+onMounted(() => window.addEventListener('popstate', handlePopState))
+onBeforeUnmount(() => window.removeEventListener('popstate', handlePopState))
 
 // 导航 key -> 页面组件映射
 const pageMap = {

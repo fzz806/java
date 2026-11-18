@@ -3,14 +3,18 @@
  *
  * 后端接口（false-god-backend，:8080，均需 Bearer token）：
  * GET  /api/power          战力面板
- *                                 -> { power, realm, nextRealm, realmLevel, realmMax,
+ *                                 -> { power, realm, realmName, realmMark,
+ *                                      stage, stageName, stageMax, nextRealm,
+ *                                      realmLevel, realmMax,
  *                                      spirit, spiritMax, seal, sealMax, skills, essence,
  *                                      actions: [{key,label,desc,gain,cost,effect,available}],
  *                                      logs: [{time,text,gain}] }
  *   POST /api/power/upgrade  { type: realm | seal | skill | essence | rest }
  *                                 -> { panel: {...同上传结构}, gain: number, looted?: {name,level,element,desc} }
  *
- * 数值模型：境界（一印→九印）× 红印重数（0-9），红印满 9 重才能突破境界。
+ * 境界模型：大境界（一印~八印【天锁八印】、半神、真神）× 小境界 4 档
+ * （初印/中印/圆满/巅峰，半神为初阶/中阶/圆满/巅峰；真神不细分）。
+ * 小境界臻至巅峰才能冲击大境界壁垒；seal 为「小境界精进」的历史动作键。
  * 综合战力由后端按各维度实时推导，不落库，保证面板/增量/榜单三处一致。
  * 失败时返回 code=400 与中文提示，页面直接弹 toast。
  *
