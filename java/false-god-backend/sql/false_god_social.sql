@@ -43,6 +43,6 @@ INSERT INTO `t_friend` (`user_id`, `friend_id`, `remark`) VALUES
   (3, 1, NULL);
 
 INSERT INTO `t_message` (`sender_id`, `receiver_id`, `content`) VALUES
-  (3, 1, '陈昊宇，神堂的缉杀令贴到塔下了，你什么时候回来？'),
+  (3, 1, '神堂的缉杀令贴到塔下了，你什么时候回来？'),
   (1, 3, '等镇兽大比打完。神堂要贴，就让他们贴。'),
   (3, 1, '……好。仓库给你留了静默砂，别死在外面。');

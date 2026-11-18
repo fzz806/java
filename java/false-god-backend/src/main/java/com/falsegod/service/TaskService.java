@@ -2,11 +2,14 @@ package com.falsegod.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.falsegod.common.RealmLadder;
 import com.falsegod.entity.ExpLog;
+import com.falsegod.entity.Power;
 import com.falsegod.entity.Task;
 import com.falsegod.entity.UserExp;
 import com.falsegod.entity.UserTask;
 import com.falsegod.mapper.ExpLogMapper;
+import com.falsegod.mapper.PowerMapper;
 import com.falsegod.mapper.TaskMapper;
 import com.falsegod.mapper.UserExpMapper;
 import com.falsegod.mapper.UserTaskMapper;
@@ -30,6 +33,15 @@ import java.util.Map;
  * 阶位由 {@link #levelOf} 实时推导。升级门槛为
  * {@code 100 + (level-1) * 80}，一到九阶累计 3780 点，十阶封顶。
  *
+ * <p><b>阶位名 = 大境界名</b>：阶梯与修行页共用 {@link RealmLadder}，
+ * Lv.N 就是第 N 个大境界（Lv.4 = 四印）。两边数字永远相等，
+ * 不会再出现「修行四印·圆满、任务页却是弃子」的矛盾：
+ * <ul>
+ *   <li>经验跨阶 → 境界同步突破（写在 {@code t_power.realm_index}）</li>
+ *   <li>修行突破大境界 → 经验补到该阶起点（{@link #syncRealmExp}）</li>
+ * </ul>
+ * 「弃子」是神堂对玩家的判定，不是阶位名，只出现在宣告文案里。
+ *
  * <p><b>进度</b>由真实操作驱动：战力模块每次提升成功后调用
  * {@link #onUpgrade}，按 action 推进对应任务；日课「每日登临」在打开
  * 任务面板时结算。没有任何接口能直接把任务改成已完成。
@@ -40,20 +52,19 @@ import java.util.Map;
  * <p><b>防重复领取</b>：领取采用「条件更新 + 受影响行数」，
  * 并发双击只有一次能改成 claimed_at，另一次返回已领取。
  *
- * <p><b>每日额度</b>：每天最多领取 {@link #DAILY_CLAIM_LIMIT} 个任务的经验，
- * 日课与主线共用，次日零点自然归零（统计口径是 claimed_at 落在今天）。
+ * <p><b>每日额度</b>：日课池共 10 条，每天最多领取 {@link #DAILY_CLAIM_LIMIT} 个，
+ * 做满 10 条即额度用尽，次日零点自然归零。主线是一次性功业（终身各领一次），
+ * <b>不占额度、也不受额度限制</b>。
+ *
+ * <p>额度口径为「{@code claimed_at} 落在今天且 {@code task_date} = 今天」：
+ * 日课的 task_date 恒为当天，主线的 task_date 固定为 {@link #MAIN_DATE}，
+ * 因此不需要任何额外字段就能把两类分开，也不必联表查 category。
  */
 @Service
 public class TaskService {
 
-    /** 阶位名，下标 0 = 一阶 */
-    private static final String[] TITLES = {
-            "弃子", "拾印者", "淬印者", "窥神者", "伪神候补",
-            "半神", "伪神", "真神之影", "觉醒者", "神明"
-    };
-
     /** 阶位上限，到顶后经验不再累计 */
-    private static final int LEVEL_MAX = TITLES.length;
+    private static final int LEVEL_MAX = RealmLadder.levels();
 
     /** 升级门槛：第 n 阶升 n+1 阶需 EXP_BASE + (n-1) * EXP_STEP */
     private static final int EXP_BASE = 100;
@@ -69,11 +80,11 @@ public class TaskService {
     private static final int LOG_LIMIT = 6;
 
     /**
-     * 每日可领取的任务数上限（日课 + 主线共用同一份额度），次日零点自动归零。
+     * 每日可领取的日课数上限（与日课池条数一致），次日零点自动归零。
      *
-     * <p>额度按 {@code claimed_at} 落在今天来统计，所以主线任务虽用固定占位日期，
-     * 只要今天领过也计入当天额度——这样「今天能领几个」与任务类别无关，
-     * 将来往任务池里加任务也不会失控。
+     * <p>只统计日课的领取次数：日课与主线用 task_date 区分（日课=当天，主线=固定占位日期），
+     * 所以「今天能领几个」与主线进度无关。将来往日课池里加任务，
+     * 记得同步这个数字，否则要么提前卡额度、要么额度永远用不完。
      */
     static final int DAILY_CLAIM_LIMIT = 10;
 
@@ -83,19 +94,24 @@ public class TaskService {
     private final UserTaskMapper userTaskMapper;
     private final UserExpMapper userExpMapper;
     private final ExpLogMapper expLogMapper;
+    private final PowerMapper powerMapper;
 
     public TaskService(TaskMapper taskMapper, UserTaskMapper userTaskMapper,
-                       UserExpMapper userExpMapper, ExpLogMapper expLogMapper) {
+                       UserExpMapper userExpMapper, ExpLogMapper expLogMapper,
+                       PowerMapper powerMapper) {
         this.taskMapper = taskMapper;
         this.userTaskMapper = userTaskMapper;
         this.userExpMapper = userExpMapper;
         this.expLogMapper = expLogMapper;
+        this.powerMapper = powerMapper;
     }
 
     // ==================== 对外能力 ====================
 
     /** 任务面板：阶位 + 经验 + 任务列表 + 最近所得 */
     public Map<String, Object> panel(Long userId) {
+        // 打开面板先把「阶位」与「境界」对齐一次，历史数据也会自动收敛
+        syncRealmAndExp(userId);
         // 打开任务面板即视为今日登临，日课第一条自动结算
         onAction(userId, "login");
         return buildPanel(userId);
@@ -103,7 +119,15 @@ public class TaskService {
 
     private Map<String, Object> buildPanel(Long userId) {
         UserExp ue = loadOrCreateExp(userId);
-        LevelInfo level = levelOf(ue.getTotalExp());
+        Power p = findPower(userId);
+        int realmIndex = p == null ? RealmLadder.DEFAULT_REALM_INDEX : RealmLadder.clamp(nz(p.getRealmIndex()));
+        int stage = p == null ? RealmLadder.DEFAULT_STAGE : nz(p.getStage());
+
+        // 境界折算：四印的门槛是 540 点，玩家的功业经验低于它时按门槛展示，
+        // 否则「四印的人显示一阶」这种矛盾会一直存在。折算量单独回传，前端可标注。
+        int rawExp = safeInt(ue.getTotalExp(), 0);
+        int baseExp = Math.max(rawExp, threshold(realmIndex + 1));
+        LevelInfo level = levelOf(baseExp);
 
         List<Task> tasks = listEnabled();
         LocalDate today = LocalDate.now();
@@ -118,7 +142,7 @@ public class TaskService {
             UserTask row = findRow(userId, t.getId(), dateOf(t, today));
             Map<String, Object> m = taskView(t, row);
             String status = (String) m.get("status");
-            boolean daily = !"main".equals(t.getCategory());
+            boolean daily = isDaily(t);
             if (daily) {
                 dailyTotal++;
                 if ("claimed".equals(status)) {
@@ -141,12 +165,15 @@ public class TaskService {
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.putAll(level.toMap());
+        // 与修行页同一份档案：阶位名、完整境界一起回传，前端不用自己拼
+        data.put("realmIndex", realmIndex);
+        data.put("realm", RealmLadder.fullRealm(realmIndex, stage));
         data.put("claimable", claimable);
         data.put("dailyTotal", dailyTotal);
         data.put("dailyClaimed", dailyClaimed);
         data.put("mainTotal", mainTotal);
         data.put("mainClaimed", mainClaimed);
-        // 每日领取额度：日课与主线共用，按「今天领取过几次」统计
+        // 每日额度：只针对日课，按「今天领过几次日课」统计；主线不占额度
         data.put("claimLimit", DAILY_CLAIM_LIMIT);
         data.put("claimedToday", claimedToday);
         data.put("remainingClaim", remaining);
@@ -184,14 +211,15 @@ public class TaskService {
             ue = locked;
         }
 
-        int claimedToday = countClaimedToday(userId);
-        if (claimedToday >= DAILY_CLAIM_LIMIT) {
-            return ClaimOutcome.fail("今日领取已达上限（" + DAILY_CLAIM_LIMIT + " 个任务），明日再来");
-        }
-
         Task task = taskMapper.selectById(taskId);
         if (task == null || task.getEnabled() == null || task.getEnabled() != 1) {
             return ClaimOutcome.fail("任务不存在或已下线");
+        }
+
+        // 每日额度只约束日课（日课池 10 条）；主线是一次性功业，不占额度也不受额度限制。
+        // 先判任务再判额度，是为了别让已下线/不存在的任务被误报成「额度已满」。
+        if (isDaily(task) && countClaimedToday(userId) >= DAILY_CLAIM_LIMIT) {
+            return ClaimOutcome.fail("今日日课已领满（" + DAILY_CLAIM_LIMIT + " 个），明日再来");
         }
 
         LocalDate date = dateOf(task, LocalDate.now());
@@ -223,7 +251,12 @@ public class TaskService {
 
         int gain = safeInt(task.getExp(), 0);
         // 经验行已在方法开头加锁，这里直接用锁住的那份，不再重复读取
-        int beforeTotal = safeInt(ue.getTotalExp(), 0);
+        Power power = findPower(userId);
+        int realmIndex = power == null
+                ? RealmLadder.DEFAULT_REALM_INDEX
+                : RealmLadder.clamp(nz(power.getRealmIndex()));
+        // 境界折算：累计经验不得低于当前大境界的起点，否则阶位会落后于修行页
+        int beforeTotal = Math.max(safeInt(ue.getTotalExp(), 0), threshold(realmIndex + 1));
         LevelInfo before = levelOf(beforeTotal);
 
         int afterTotal = beforeTotal + gain;
@@ -232,11 +265,17 @@ public class TaskService {
         userExpMapper.updateById(ue);
 
         LevelInfo after = levelOf(afterTotal);
+        // 经验跨阶即神格升阶：同时把大境界写回战力档案，两处保持一致
+        boolean realmUp = after.level > realmIndex + 1;
+        if (realmUp) {
+            pushRealmTo(userId, power, after.level);
+        }
         writeLog(userId, "完成「" + task.getTitle() + "」", gain);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("gain", gain);
         data.put("levelUp", after.level > before.level);
+        data.put("realmUp", realmUp);
         data.put("oldLevel", before.level);
         data.put("newLevel", after.level);
         data.put("newTitle", after.title);
@@ -318,17 +357,26 @@ public class TaskService {
     }
 
     /**
-     * 今天已经领取过经验的任务数（日课 + 主线一起算）。
+     * 今天已经领取过经验的<b>日课</b>数（主线不算）。
      *
-     * <p>按 {@code claimed_at} 是否落在今天统计，而不是按 {@code task_date}：
-     * 主线任务的 task_date 是固定占位值，只有 claimed_at 能反映「今天领的」。
+     * <p>按 {@code claimed_at} 是否落在今天统计，而不是按 {@code task_date} 跨天比较：
+     * 还要额外限定 {@code task_date = 今天}，因为主线的 task_date 是固定占位值，
+     * 若不加这条，主线领取也会被算进当天额度。日课每天新建一行且日期恒为当天，
+     * 所以「日期=今天 + 今天已领取」正好筛出今天领过的日课。
      */
     int countClaimedToday(Long userId) {
+        LocalDate today = LocalDate.now();
         Long c = userTaskMapper.selectCount(new LambdaQueryWrapper<UserTask>()
                 .eq(UserTask::getUserId, userId)
+                .eq(UserTask::getTaskDate, today)
                 .isNotNull(UserTask::getClaimedAt)
-                .ge(UserTask::getClaimedAt, LocalDate.now().atStartOfDay()));
+                .ge(UserTask::getClaimedAt, today.atStartOfDay()));
         return c == null ? 0 : c.intValue();
+    }
+
+    /** 是否日课：t_task.category 只有 daily / main 两种，非 main 即日课 */
+    private boolean isDaily(Task t) {
+        return !"main".equals(t.getCategory());
     }
 
     private List<Task> listEnabled() {
@@ -397,6 +445,101 @@ public class TaskService {
         return ue;
     }
 
+    // ==================== 阶位 ↔ 境界 对齐 ====================
+
+    /**
+     * 把「神格阶位」与「修行境界」对齐（幂等，面板每次打开都跑）。
+     *
+     * <p>两个方向都要管，否则总有一边落后：
+     * <ul>
+     *   <li>境界在前（新档默认四印、或刚用灵能突破）→ 经验补到该阶起点</li>
+     *   <li>经验在前（靠功业一路领取）→ 大境界跟上，小境界归初印</li>
+     * </ul>
+     */
+    void syncRealmAndExp(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        UserExp ue = loadOrCreateExp(userId);
+        int rawExp = safeInt(ue.getTotalExp(), 0);
+        Power p = findPower(userId);
+        int realmIndex = p == null
+                ? RealmLadder.DEFAULT_REALM_INDEX
+                : RealmLadder.clamp(nz(p.getRealmIndex()));
+        int realmLevel = realmIndex + 1;
+        int expLevel = levelOf(rawExp).level;
+
+        if (expLevel < realmLevel) {
+            raiseExpTo(userId, threshold(realmLevel));
+        } else if (expLevel > realmLevel) {
+            pushRealmTo(userId, p, expLevel);
+        }
+    }
+
+    /**
+     * 修行突破大境界后同步神格经验：把累计经验补到该阶起点，阶位随境界一起跳。
+     *
+     * <p>由 {@code PowerService} 在突破落库后调用；经验只增不减，重复调用无副作用。
+     */
+    public void syncRealmExp(Long userId, int realmIndex) {
+        if (userId == null) {
+            return;
+        }
+        raiseExpTo(userId, threshold(RealmLadder.clamp(realmIndex) + 1));
+    }
+
+    /**
+     * 把累计经验抬到 {@code base}（只增不减）。
+     *
+     * <p>用「{@code total_exp < base}」作为更新条件，而不是先读再写：
+     * 面板对齐与任务领取可能并发，条件更新能保证永远不把刚领到的经验覆盖掉。
+     */
+    private void raiseExpTo(Long userId, int base) {
+        loadOrCreateExp(userId);   // 确保经验行存在
+        userExpMapper.update(null, new UpdateWrapper<UserExp>()
+                .eq("user_id", userId)
+                .lt("total_exp", base)
+                .set("total_exp", base)
+                .set("updated_at", LocalDateTime.now()));
+    }
+
+    /**
+     * 把阶位写回战力档案（大境界 +1，小境界归初印）。
+     *
+     * <p>没有档案时按默认值补建一份，字段与 {@code PowerService#loadOrCreate} 一致，
+     * 避免玩家先做任务、后开修行页时两边数字打架。
+     */
+    private void pushRealmTo(Long userId, Power p, int level) {
+        int target = RealmLadder.indexOfLevel(level);
+        if (p == null) {
+            p = new Power();
+            p.setUserId(userId);
+            p.setRealmIndex(target);
+            p.setStage(0);
+            p.setSpirit(900);
+            p.setSpiritMax(2000);
+            p.setSkills(7);
+            p.setEssence(8);
+            p.setUpdatedAt(LocalDateTime.now());
+            powerMapper.insert(p);
+            return;
+        }
+        if (nz(p.getRealmIndex()) == target) {
+            return;
+        }
+        p.setRealmIndex(target);
+        p.setStage(0);
+        p.setUpdatedAt(LocalDateTime.now());
+        powerMapper.updateById(p);
+    }
+
+    /** 读取战力档案，没有则返回 null（建档由修行页/升阶逻辑负责） */
+    private Power findPower(Long userId) {
+        return powerMapper.selectOne(new LambdaQueryWrapper<Power>()
+                .eq(Power::getUserId, userId)
+                .last("limit 1"));
+    }
+
     private List<Map<String, Object>> recentLogs(Long userId) {
         List<ExpLog> rows = expLogMapper.selectList(new LambdaQueryWrapper<ExpLog>()
                 .eq(ExpLog::getUserId, userId)
@@ -426,6 +569,10 @@ public class TaskService {
         return v == null ? fallback : v;
     }
 
+    private static int nz(Integer v) {
+        return v == null ? 0 : v;
+    }
+
     /**
      * 由累计经验推导阶位。
      *
@@ -442,13 +589,22 @@ public class TaskService {
         boolean full = level >= LEVEL_MAX;
         int expMax = full ? 0 : need(level);
         int percent = full ? 100 : (int) Math.round(remain * 100.0 / expMax);
-        return new LevelInfo(level, TITLES[level - 1], remain, expMax, Math.max(0, totalExp),
+        return new LevelInfo(level, RealmLadder.title(level), remain, expMax, Math.max(0, totalExp),
                 percent, full);
     }
 
     /** 第 level 阶升下一阶所需经验 */
     static int need(int level) {
         return EXP_BASE + (level - 1) * EXP_STEP;
+    }
+
+    /** 从一阶升到 level 阶所需的累计经验（level = 4 → 540） */
+    static int threshold(int level) {
+        int sum = 0;
+        for (int i = 1; i < level; i++) {
+            sum += need(i);
+        }
+        return sum;
     }
 
     /** 阶位快照，附带前端要的百分比 */
@@ -482,7 +638,7 @@ public class TaskService {
             m.put("percent", percent);
             m.put("levelMax", LEVEL_MAX);
             m.put("full", full);
-            m.put("nextTitle", full ? title : TITLES[level]);
+            m.put("nextTitle", full ? title : RealmLadder.title(level + 1));
             return m;
         }
     }

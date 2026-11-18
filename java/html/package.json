@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "觉醒伪神：神明弃我我自为神 · 陈昊宇主题登录页（Vue 3 + Vite）",
+  "description": "觉醒伪神：神明弃我我自为神 · 登录页（Vue 3 + Vite）",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

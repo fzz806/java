@@ -16,13 +16,18 @@ import java.util.Map;
  * 神格任务与阶位经验接口，路径与前端 src/api/task.js 保持一致：
  * <pre>
  *   GET  /api/task         -> { level, title, exp, expMax, totalExp, percent, levelMax, full,
- *                               nextTitle, claimable, dailyTotal, dailyClaimed,
+ *                               nextTitle, realm, realmIndex,
+ *                               claimable, dailyTotal, dailyClaimed,
  *                               mainTotal, mainClaimed,
  *                               tasks: [{id,code,title,desc,category,categoryLabel,action,
  *                                        progress,target,exp,status,percent}],
  *                               logs: [{time,text,exp}] }
- *   POST /api/task/claim   { id } -> { gain, levelUp, oldLevel, newLevel, newTitle, panel:{...} }
+ *   POST /api/task/claim   { id } -> { gain, levelUp, realmUp, oldLevel, newLevel, newTitle,
+ *                                      panel:{...} }
  * </pre>
+ *
+ * <p>{@code level/title} 是神格阶位，{@code realm} 是完整修行境界（如「四印 · 圆满」），
+ * 两者走同一条阶梯 {@code RealmLadder}，前端可以直接并排展示而不会打架。
  *
  * <p>位于 /api/** 下，受 AuthInterceptor 保护；当前用户取自拦截器写入的 request attribute。
  * 任务进度不接受外部直接写入，只能由真实操作（战力提升、登临）推进。

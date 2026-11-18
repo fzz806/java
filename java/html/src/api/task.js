@@ -4,17 +4,29 @@
  * 后端接口（false-god-backend，:8080，均需 Bearer token）：
  *   GET  /api/task        任务面板
  *                             -> { level, title, nextTitle, exp, expMax, totalExp, percent,
- *                                  levelMax, full, claimable,
+ *                                  levelMax, full, realm, realmIndex, realmExp,
+ *                                  claimable,
  *                                  dailyTotal, dailyClaimed, mainTotal, mainClaimed,
+ *                                  claimLimit, claimedToday, remainingClaim, limitReached,
  *                                  tasks: [{ id, code, title, desc, category, categoryLabel,
  *                                            action, progress, target, exp, status, percent }],
  *                                  logs: [{ time, text, exp }] }
  *   POST /api/task/claim  { id }
- *                             -> { gain, levelUp, oldLevel, newLevel, newTitle, panel: {...同上} }
+ *                             -> { gain, levelUp, realmUp, oldLevel, newLevel, newTitle,
+ *                                  panel: {...同上} }
  *
  * 规则：经验只从任务领取获得；阶位由后端按累计经验推导，前端不自行计算等级。
+ *
+ * 阶位名与大境界同名（Lv.4 = 四印），阶梯由后端 RealmLadder 统一维护：
+ * 经验跨阶会把大境界一起推上去，修行页突破也会把经验补到该阶起点，
+ * 所以 task 面板的 level/title 与 /api/power 的 realm 永远指向同一个境界。
+ * realm 是完整境界（如「四印 · 圆满」），用于在阶位旁标注当前修行进度。
  * 任务进度由真实操作推进（淬炼/突破/静修/吞噬/掠夺/登临），前端没有任何
  * 「直接完成任务」的入口。
+ *
+ * 每日额度：日课池固定 10 条，claimLimit = 10，每天最多领 10 条日课的经验，
+ * 做满即 limitReached=true，次日零点归零。主线是一次性功业，不占额度、
+ * 也不受 limitReached 限制——所以前端置灰时要按 category 区分，不能一刀切。
  * 失败时 code=400 + 中文提示，页面直接弹 toast。
  *
  * 统一响应：{ code: 0, message: 'ok', data: {...} }

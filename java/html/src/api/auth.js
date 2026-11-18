@@ -94,7 +94,7 @@ export async function register({ username, password }) {
       return { code: 1, message: '真名与神印不可为空', data: null }
     }
     // Mock：模拟"真名已被神堂登记"的情况，方便测试失败分支
-    if (username === '陈昊宇') {
+    if (username === 'chenhaoyu') {
       return { code: 2, message: '此真名已被神堂登记，请另取伪名', data: null }
     }
     return {

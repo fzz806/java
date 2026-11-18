@@ -4,8 +4,10 @@
  * 后端接口（false-god-backend，:8080，均需 Bearer token）：
  *   GET /api/skills        -> 神技图鉴
  *   GET /api/arena/matches -> 镇兽大比赛程
- *   GET /api/guild         -> { info, members } 公会简报 + 成员
- *   GET /api/rank          -> 战力榜（战力倒序）
+ *   GET /api/guild         -> { info, members, memberCount }
+ *                             公会简报 + 名册；members 已并入当前玩家（self=true），
+ *                             info.members 的「在册 N 人」由后端按真实人数改写
+ *   GET /api/rank          -> 战力榜（战力倒序，已并入当前玩家，玩家那条 self=true）
  *   GET /api/home          -> { notices: [{tag,title,time}], warehouse: [{name,count,rarity}] }
  */
 

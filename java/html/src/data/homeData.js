@@ -33,7 +33,6 @@ export const searchIndex = [
   { type: '镇兽', name: '灰潮鲛', level: 'S', desc: '地下暗河霸主，鳞片能吸收灵能斩击' },
   { type: '成员', name: '沈砚', level: '副会长', desc: '恶鬼之牙 · 仓库看守，掌管全部禁忌材料' },
   { type: '成员', name: '白鹭', level: '医师', desc: '恶鬼之牙 · 医疗，唯一能压住反噬的人' },
-  { type: '成员', name: '陈昊宇', level: '伪神', desc: '神堂判定神弃之人，现任恶鬼之牙王牌' },
   { type: '赛程', name: '镇兽大比 · 八强赛', level: '8 强', desc: '11 月 12 日 · 神堂中央斗场' },
   { type: '赛程', name: '镇兽大比 · 半决赛', level: '4 强', desc: '11 月 16 日 · 神堂中央斗场' },
   { type: '赛程', name: '镇兽大比 · 决赛', level: '决赛', desc: '11 月 20 日 · 神堂中央斗场' },
@@ -76,8 +75,8 @@ export const notices = [
 
 /** 镇兽大比赛程 */
 export const schedule = [
-  { date: '11.12', stage: '八强赛', versus: '陈昊宇 × 铁脊犀', state: '未开始' },
-  { date: '11.16', stage: '半决赛', versus: '陈昊宇 × 待定', state: '待定' },
+  { date: '11.13', stage: '八强赛', versus: '白鹭 × 鸣砂雀', state: '未开始' },
+  { date: '11.16', stage: '半决赛', versus: '待定 × 待定', state: '待定' },
   { date: '11.20', stage: '决赛', versus: '神堂中央斗场', state: '待定' }
 ]
 

@@ -142,7 +142,7 @@ const powerText = computed(() =>
                 <span v-if="gainTip" class="p-gain">+{{ gainTip }}</span>
               </transition>
             </div>
-            <span class="p-seal">凭 · 野生红印 {{ data.seal }} 重</span>
+            <span class="p-seal">凭 · 野生红印 · 小境界「{{ data.stageName }}」</span>
           </div>
 
           <!-- 境界阶梯 -->
@@ -165,7 +165,14 @@ const powerText = computed(() =>
               </div>
               <div class="r-track"><div class="r-fill" :style="{ width: spiritPercent + '%' }"></div></div>
             </div>
-            <div class="res-item"><span class="r-name">红印</span><b>{{ data.seal }}</b><i>/ {{ data.sealMax }} 重</i></div>
+            <div class="res-item"><span class="r-name">小境界</span><b>{{ data.stageName }}</b><i>{{ data.realmLevel }} / {{ data.realmMax }} 档</i></div>
+            <div
+              class="res-item"
+              :class="{ spent: data.restLeft === 0 }"
+              :title="`今日剩余静修 ${data.restLeft} / ${data.restLimit} 次，子时重置`"
+            >
+              <span class="r-name">静修</span><b>{{ data.restLeft }}</b><i>/ {{ data.restLimit }} 次</i>
+            </div>
             <div class="res-item"><span class="r-name">神技</span><b>{{ data.skills }}</b><i>式</i></div>
             <div class="res-item"><span class="r-name">本源</span><b>{{ data.essence }}</b><i>枚</i></div>
           </div>
@@ -182,6 +189,11 @@ const powerText = computed(() =>
             <div class="act-head">
               <span class="act-label">{{ a.label }}</span>
               <span v-if="a.gain" class="act-gain">+{{ a.gain }}</span>
+              <span
+                v-else-if="a.key === 'rest' && a.limit"
+                class="act-quota"
+                :class="{ out: a.left === 0 }"
+              >{{ a.left === 0 ? '今日已满' : `余 ${a.left} / ${a.limit}` }}</span>
             </div>
             <p class="act-desc">{{ a.desc }}</p>
             <div class="act-foot">
@@ -189,7 +201,7 @@ const powerText = computed(() =>
               <span class="act-effect">{{ a.effect }}</span>
             </div>
             <button class="act-btn" :disabled="!a.available || busy" @click="run(a)">
-              {{ a.key === 'rest' ? '静 修' : '提 升' }}
+              {{ a.key === 'rest' ? (a.left === 0 ? '明 日 再 来' : '静 修') : '提 升' }}
             </button>
           </div>
         </section>
@@ -385,6 +397,7 @@ const powerText = computed(() =>
   color: #6d6660;
 }
 .res-item.spirit { flex: 1 1 100%; display: block; }
+.res-item.spent b { color: #6d6478; }
 .res-item b { font-size: 16px; color: #e8e0d0; font-weight: 400; }
 .res-item i { font-style: normal; color: #57505e; font-size: 10px; }
 .res-top { display: flex; justify-content: space-between; margin-bottom: 7px; }
@@ -425,6 +438,9 @@ const powerText = computed(() =>
   letter-spacing: .08em;
   text-shadow: 0 0 10px var(--c1-glow);
 }
+/* 静修每日额度：余 x / 5，用尽后转灰 */
+.act-quota { font-size: 11px; letter-spacing: .12em; color: #9a8a55; }
+.act-quota.out { color: #6d6478; }
 .act-desc {
   margin: 9px 0 12px;
   font-size: 11.5px;

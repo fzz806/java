@@ -7,7 +7,6 @@
     <div class="verdict">神堂判定：神弃之人 · 终生无法镶嵌神印</div>
 
     <h1>
-      <span class="name">陈 昊 宇</span>
       <span class="eyebrow">觉 醒 伪 神</span>
       <span class="line1">神明弃我<span class="comma">，</span></span>
       <span class="line2">我自为神</span>
@@ -64,16 +63,6 @@ h1 {
   font-weight: 900;
   letter-spacing: .1em;
 }
-h1 .name {
-  display: block;
-  font-size: .42em;
-  letter-spacing: .6em;
-  color: #9a917f;
-  margin-bottom: 14px;
-  font-weight: 400;
-}
-
-/* 主标：觉醒伪神 */
 h1 .eyebrow {
   display: inline-block;
   font-size: .3em;

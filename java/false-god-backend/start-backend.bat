@@ -36,6 +36,6 @@ if not exist "%JAR%" (
     )
 )
 
-echo [backend] 启动服务 http://192.168.68.63:8080 ...
+echo [backend] 启动服务 http://192.168.68.49:8080 ...
 java -jar "%JAR%" --server.port=8080
 pause

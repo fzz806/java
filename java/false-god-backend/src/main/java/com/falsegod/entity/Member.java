@@ -29,6 +29,13 @@ public class Member {
     /** 一句话介绍 */
     private String bio;
 
+    /**
+     * 该行是否为「当前登录玩家」本人（不落库，仅战力榜合并时临时置 true）。
+     * 前端据此高亮自己那一行，比按昵称匹配更可靠。
+     */
+    @TableField(exist = false)
+    private Boolean self;
+
     public Long getId() {
         return id;
     }
@@ -83,5 +90,13 @@ public class Member {
 
     public void setBio(String bio) {
         this.bio = bio;
+    }
+
+    public Boolean getSelf() {
+        return self;
+    }
+
+    public void setSelf(Boolean self) {
+        this.self = self;
     }
 }

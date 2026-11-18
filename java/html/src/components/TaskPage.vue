@@ -11,6 +11,14 @@ function canGo(t) {
   return t.status === 'doing' && GO_ACTIONS.includes(t.action)
 }
 
+/**
+ * 每日额度只约束日课（日课池 10 条，做满即用尽）。
+ * 主线是一次性功业，不占额度，因此不能用 limitReached 拦它。
+ */
+function isQuotaBlocked(t) {
+  return t.category !== 'main' && !!data.value && data.value.limitReached
+}
+
 function onTaskClick(t) {
   if (t.status === 'claimable') {
     claim(t)
@@ -23,7 +31,7 @@ function btnText(t) {
   if (busyId.value === t.id) return '结 算 中'
   if (t.status === 'claimed') return '已 领 取'
   if (t.status === 'claimable') {
-    return data.value && data.value.limitReached ? '额 度 已 满' : '领 取 经 验'
+    return isQuotaBlocked(t) ? '额 度 已 满' : '领 取 经 验'
   }
   return canGo(t) ? '去 完 成' : '进 行 中'
 }
@@ -66,13 +74,13 @@ function showExpTip(v) {
   tipTimer = setTimeout(() => (expTip.value = 0), 2200)
 }
 
-/* 阶位晋升动画 */
-const ascended = ref(null) // { level, title }
+/* 阶位晋升动画（跨阶同时突破大境界时，文案改成「境界突破」） */
+const ascended = ref(null) // { level, title, realm }
 let ascendTimer = 0
-function playAscend(level, title) {
-  ascended.value = { level, title }
+function playAscend(level, title, realm) {
+  ascended.value = { level, title, realm: realm || '' }
   clearTimeout(ascendTimer)
-  ascendTimer = setTimeout(() => (ascended.value = null), 2200)
+  ascendTimer = setTimeout(() => (ascended.value = null), 2400)
 }
 
 onBeforeUnmount(() => {
@@ -98,9 +106,9 @@ async function load() {
 
 async function claim(t) {
   if (busyId.value || t.status !== 'claimable') return
-  // 额度是独立一层限制：任务达标但今日额度用尽，前端先挡一次，后端也会拒
-  if (data.value && data.value.limitReached) {
-    showToast(`今日已领 ${data.value.claimedToday} 个任务，明日再来`)
+  // 额度是独立一层限制：日课达标但今日额度用尽，前端先挡一次，后端也会拒
+  if (isQuotaBlocked(t)) {
+    showToast(`今日日课已领 ${data.value.claimedToday} 个，明日再来`)
     return
   }
   busyId.value = t.id
@@ -114,7 +122,10 @@ async function claim(t) {
     animateExp(expBefore, panel.exp)
     showExpTip(r.data.gain)
     emit('sync', panel)
-    if (r.data.levelUp) playAscend(r.data.newLevel, r.data.newTitle)
+    if (r.data.levelUp) {
+      // realmUp=true 说明这一跨阶同时把修行境界推上去了，动画文案要说清楚
+      playAscend(r.data.newLevel, r.data.newTitle, r.data.realmUp ? panel.realm : '')
+    }
   } else if (r.code === 401) {
     errorText.value = r.message
   } else {
@@ -144,7 +155,8 @@ const nextHint = computed(() => {
   if (!data.value) return ''
   if (data.value.full) return '神格圆满 · 再无阶位可登'
   const rest = data.value.expMax - data.value.exp
-  return `距「${data.value.nextTitle}」还需 ${rest} 点经验`
+  // 阶位与大境界同一条阶梯，跨阶会同步破境，这里点明免得玩家以为是两套进度
+  return `距「${data.value.nextTitle}」还需 ${rest} 点经验 · 跨阶即破境`
 })
 </script>
 
@@ -170,6 +182,8 @@ const nextHint = computed(() => {
             <span class="lv-num">Lv.{{ data.level }}</span>
             <span class="lv-title">{{ data.title }}</span>
           </div>
+          <!-- 阶位与境界同一条阶梯：这里直接显示修行页的完整境界，两处数字永远一致 -->
+          <span v-if="data.realm" class="lv-realm">当前境界 · {{ data.realm }}</span>
           <span class="lv-next">{{ nextHint }}</span>
         </div>
 
@@ -189,10 +203,10 @@ const nextHint = computed(() => {
           <div class="track"><div class="fill" :style="{ width: data.percent + '%' }"></div></div>
           <span class="exp-total">累计所得 {{ data.totalExp }} 点 · 阶位上限 Lv.{{ data.levelMax }}</span>
           <span class="quota" :class="{ done: data.limitReached }">
-            今日领取额度
+            今日日课额度
             <b>{{ data.claimedToday }} / {{ data.claimLimit }}</b>
-            <em v-if="data.limitReached">已用尽 · 明日零点恢复</em>
-            <em v-else>还可领 {{ data.remainingClaim }} 个任务</em>
+            <em v-if="data.limitReached">已领满 {{ data.claimLimit }} 条 · 明日零点恢复</em>
+            <em v-else>还可领 {{ data.remainingClaim }} 条日课</em>
           </span>
         </div>
 
@@ -220,7 +234,7 @@ const nextHint = computed(() => {
       <section class="group">
         <h3>
           日 课
-          <span class="g-sub">每日重置 · 全清可得 {{ dailyExp }} 点经验</span>
+          <span class="g-sub">每日重置 · 共 {{ dailyTasks.length }} 条 · 全清可得 {{ dailyExp }} 点经验</span>
         </h3>
         <div class="grid">
           <article v-for="t in dailyTasks" :key="t.id" class="task" :class="t.status">
@@ -236,7 +250,7 @@ const nextHint = computed(() => {
             <button
               class="t-btn"
               :class="{ go: canGo(t) }"
-              :disabled="busyId === t.id || (t.status !== 'claimable' && !canGo(t)) || (t.status === 'claimable' && data.limitReached)"
+              :disabled="busyId === t.id || (t.status !== 'claimable' && !canGo(t)) || (t.status === 'claimable' && isQuotaBlocked(t))"
               @click="onTaskClick(t)"
             >
               {{ btnText(t) }}
@@ -250,7 +264,7 @@ const nextHint = computed(() => {
       <section class="group">
         <h3>
           主 线
-          <span class="g-sub">一次成就 · 不随日重置 · 共 {{ mainExp }} 点经验</span>
+          <span class="g-sub">一次成就 · 不随日重置 · 不占日课额度 · 共 {{ mainExp }} 点经验</span>
         </h3>
         <div class="grid">
           <article v-for="t in mainTasks" :key="t.id" class="task main-task" :class="t.status">
@@ -266,7 +280,7 @@ const nextHint = computed(() => {
             <button
               class="t-btn"
               :class="{ go: canGo(t) }"
-              :disabled="busyId === t.id || (t.status !== 'claimable' && !canGo(t)) || (t.status === 'claimable' && data.limitReached)"
+              :disabled="busyId === t.id || (t.status !== 'claimable' && !canGo(t)) || (t.status === 'claimable' && isQuotaBlocked(t))"
               @click="onTaskClick(t)"
             >
               {{ btnText(t) }}
@@ -289,7 +303,7 @@ const nextHint = computed(() => {
         <p v-if="!data.logs.length" class="logs-empty">尚无经验 · 从第一份日课开始</p>
       </section>
 
-      <p class="tip-line">任务进度由实际修行推进：淬炼红印、突破境界、静修、吞噬本源、掠夺神技，皆记功业。</p>
+      <p class="tip-line">任务进度由实际修行推进：精进小境界、突破大境界、静修、吞噬本源、掠夺神技，皆记功业。</p>
     </template>
 
     <!-- ============ 阶位晋升动画 ============ -->
@@ -305,8 +319,9 @@ const nextHint = computed(() => {
           <circle cx="24" cy="32" r="2.4" stroke="currentColor" stroke-width="1.2" />
           <circle cx="76" cy="32" r="2.4" stroke="currentColor" stroke-width="1.2" />
         </svg>
-        <p class="a-text">阶 位 晋 升</p>
+        <p class="a-text">{{ ascended.realm ? '境 界 突 破' : '阶 位 晋 升' }}</p>
         <p class="a-level">Lv.{{ ascended.level }} · {{ ascended.title }}</p>
+        <p v-if="ascended.realm" class="a-realm">{{ ascended.realm }}</p>
       </div>
     </transition>
 
@@ -408,6 +423,13 @@ const nextHint = computed(() => {
   text-shadow: 0 0 18px var(--c1-glow);
 }
 .lv-next { display: block; margin-top: 8px; font-size: 11px; letter-spacing: .22em; color: #8a8291; }
+.lv-realm {
+  display: block;
+  margin-top: 10px;
+  font-size: 11.5px;
+  letter-spacing: .2em;
+  color: #c2ab72;
+}
 
 .exp { margin-top: 24px; }
 .exp-head {
@@ -674,6 +696,16 @@ const nextHint = computed(() => {
   text-indent: .22em;
   color: #fff4e6;
   text-shadow: 0 0 30px var(--c1-glow);
+  animation: ascendText 2.2s ease forwards;
+}
+.a-realm {
+  position: relative;
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: .34em;
+  text-indent: .34em;
+  color: var(--c1);
+  text-shadow: 0 0 16px var(--c1-glow);
   animation: ascendText 2.2s ease forwards;
 }
 @keyframes ascendFlash {

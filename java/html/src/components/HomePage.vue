@@ -16,7 +16,8 @@ import {
   notices,
   schedule,
   skillBars,
-  warehouse
+  warehouse,
+  navItems
 } from '../data/homeData.js'
 import { loginDurationText } from '../api/session.js'
 import { fetchPower } from '../api/power.js'
@@ -51,8 +52,12 @@ async function refreshLive() {
   const [p, r, h, t] = await Promise.all([fetchPower(), fetchRank(), fetchHome(), fetchTask()])
   if (p.code === 0 && p.data) livePower.value = p.data
   if (r.code === 0 && Array.isArray(r.data) && livePower.value) {
+    // 后端已把玩家并入榜单并标 self，直接取它所在名次最准（并列也不出错）
+    const selfIdx = r.data.findIndex((m) => m.self === true)
     const mine = livePower.value.power
-    liveRank.value = r.data.filter((m) => m.power > mine).length + 1
+    liveRank.value = selfIdx >= 0
+      ? selfIdx + 1
+      : r.data.filter((m) => m.power > mine).length + 1
   }
   if (h.code === 0 && h.data) liveHome.value = h.data
   if (t.code === 0 && t.data) applyTaskPanel(t.data)
@@ -60,12 +65,22 @@ async function refreshLive() {
 
 /** 任务面板变化时同步导航徽记（领取后红点立刻消失，不必等回首页） */
 function applyTaskPanel(panel) {
-  // 额度用尽的任务虽然达标，今天也领不了：红点与入口按「实际可领」算，
-  // 达标数量另存一份，用来提示"额度已满"而不是假装没有奖赏
+  // 额度只约束日课：日课达标但今天领不了的不算红点；
+  // 主线的达标随时可领，即使日课额度已满也要计入。
   const reached = !!panel.limitReached
+  const total = panel.claimable || 0
+  const tasks = Array.isArray(panel.tasks) ? panel.tasks : null
+  if (tasks) {
+    const dailyReady = tasks.filter((x) => x.category !== 'main' && x.status === 'claimable').length
+    const mainReady = tasks.filter((x) => x.category === 'main' && x.status === 'claimable').length
+    taskClaimRaw.value = dailyReady + mainReady
+    taskClaimable.value = (reached ? 0 : dailyReady) + mainReady
+  } else {
+    // 兜底：面板没带任务明细时退回旧口径
+    taskClaimRaw.value = total
+    taskClaimable.value = reached ? 0 : total
+  }
   taskLimitReached.value = reached
-  taskClaimRaw.value = panel.claimable || 0
-  taskClaimable.value = reached ? 0 : panel.claimable || 0
   taskLevel.value = panel.level || 0
   taskTitle.value = panel.title || ''
   taskExp.value = panel.exp || 0
@@ -109,7 +124,7 @@ const statList = computed(() => {
   const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
   return stats.map((s) => {
     if (s.label === '综合战力') {
-      return { ...s, value: fmt(p.power), hint: `${p.realm} · 红印 ${p.seal} 重` }
+      return { ...s, value: fmt(p.power), hint: p.realm }
     }
     if (s.label === '已习神技') {
       return { ...s, value: String(p.skills), hint: `灵能 ${p.spirit} / ${p.spiritMax}` }
@@ -134,13 +149,38 @@ function showToast(msg) {
 onBeforeUnmount(() => clearTimeout(toastTimer))
 
 /* ---------------- 页面切换 ---------------- */
-// home = 首页，skill / beast / guild / rank / power = 子页面
-const page = ref('home')
+// 子页面 key 同步到 URL hash（如 #power），刷新与分享都能直达对应页面
+const PAGE_KEYS = ['home', 'skill', 'beast', 'guild', 'rank', 'power', 'task']
+
+function pageFromHash() {
+  const raw = (window.location.hash || '').replace(/^#\/?/, '').trim()
+  return PAGE_KEYS.includes(raw) ? raw : 'home'
+}
+
+// home = 首页，skill / beast / guild / rank / power / task = 子页面
+const page = ref(pageFromHash())
+
+function writeHash(v) {
+  const base = window.location.pathname + window.location.search
+  const want = v === 'home' ? base : `${base}#${v}`
+  const now = window.location.pathname + window.location.search + window.location.hash
+  // 一致就不写，避免浏览器历史里堆重复条目
+  if (now !== want) window.history.pushState(null, '', want)
+}
 
 // 从战力提升页返回时重新拉一次战力，保证数字是最新的
 watch(page, (v) => {
+  writeHash(v)
   if (v === 'home') refreshLive()
 })
+
+// 浏览器前进/后退时，按地址栏 hash 还原页面
+function handlePopState() {
+  page.value = pageFromHash()
+}
+
+onMounted(() => window.addEventListener('popstate', handlePopState))
+onBeforeUnmount(() => window.removeEventListener('popstate', handlePopState))
 
 // 导航 key -> 页面组件映射
 const pageMap = {
@@ -152,6 +192,12 @@ const pageMap = {
   task: TaskPage
 }
 const activePage = computed(() => pageMap[page.value] || null)
+
+/** 当前子页面名，用于返回条右侧的面包屑 */
+const currentLabel = computed(() => {
+  const hit = navItems.find((n) => n.key === page.value)
+  return hit ? hit.label : ''
+})
 
 /* ---------------- 导航 ---------------- */
 function handleNavigate(item) {
@@ -174,6 +220,14 @@ function handleNavigate(item) {
     return
   }
   showToast(`「${item.label}」尚未开启　先把首页看个够`)
+}
+
+/**
+ * 返回主页：子页面顶部的返回条、以及浏览器后退都归到这一条路径。
+ * 走 handleNavigate 而不是直接改 page，是为了顺带写 hash、回顶部、重拉首页数据。
+ */
+function goHome() {
+  handleNavigate({ key: 'home' })
 }
 
 /* ---------------- 搜索 ---------------- */
@@ -233,7 +287,33 @@ function openChat(f) {
     />
 
     <!-- 子页面：神技图鉴 / 镇兽大比 / 恶鬼之牙 / 战力榜 -->
-    <component :is="activePage" v-if="activePage" @sync="onTaskSync" @goto="goPage" />
+    <template v-if="activePage">
+      <!-- 返回主页：所有子页面共用一条，不必在每个子页面里各写一遍 -->
+      <div class="subnav">
+        <div class="subnav-inner">
+          <button type="button" class="back-home" title="返回主页" @click="goHome">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M14.5 5.5 L8 12 L14.5 18.5"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path d="M8.6 12 H19" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+            <span>返 回 主 页</span>
+          </button>
+          <span class="subnav-trail">
+            <i>首页</i>
+            <em aria-hidden="true">/</em>
+            <b>{{ currentLabel }}</b>
+          </span>
+        </div>
+      </div>
+
+      <component :is="activePage" @sync="onTaskSync" @goto="goPage" />
+    </template>
 
     <main v-else>
       <!-- ============ HERO ============ -->
@@ -1005,6 +1085,67 @@ h1 .name {
   transform: translate(-50%, 10px);
 }
 
+/* ================= 子页面返回条 ================= */
+.subnav {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 18px 28px 0;
+}
+.subnav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+}
+
+.back-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 11px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 2px;
+  color: #a99eb0;
+  font-family: inherit;
+  font-size: 11.5px;
+  letter-spacing: .22em;
+  cursor: pointer;
+  transition: color .3s, border-color .3s, background .3s, box-shadow .3s;
+}
+.back-home svg { width: 15px; height: 15px; transition: transform .3s; }
+.back-home:hover {
+  color: var(--c1);
+  border-color: var(--c1-dim);
+  background: var(--c1-soft);
+  box-shadow: 0 0 16px var(--c1-soft);
+}
+.back-home:hover svg { transform: translateX(-3px); }
+.back-home:focus-visible {
+  outline: none;
+  color: var(--c1);
+  border-color: var(--c1);
+  box-shadow: 0 0 16px var(--c1-soft);
+}
+
+.subnav-trail {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: .22em;
+  color: #57505e;
+  white-space: nowrap;
+}
+.subnav-trail i { font-style: normal; }
+.subnav-trail em { font-style: normal; opacity: .45; }
+.subnav-trail b { font-weight: 400; color: #9a8a55; }
+
+/* 返回条已经提供了上边距，子页面自身顶部收紧一点，避免双重留白 */
+:deep(.page) { padding-top: 22px; }
+
 /* ================= 响应式 ================= */
 @media (max-width: 1080px) {
   .grid { grid-template-columns: repeat(2, 1fr); }
@@ -1012,6 +1153,7 @@ h1 .name {
 }
 @media (max-width: 860px) {
   main { padding: 0 18px 50px; }
+  .subnav { padding: 14px 18px 0; }
   .hero { padding: 46px 0 40px; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .stat { border-right: none; border-bottom: 1px solid rgba(255, 255, 255, .06); }
@@ -1020,6 +1162,8 @@ h1 .name {
 }
 @media (max-width: 640px) {
   .grid { grid-template-columns: 1fr; }
+  .subnav-trail { display: none; }
+  .back-home { font-size: 10.5px; padding: 6px 11px 6px 9px; }
   .card.wide { grid-column: span 1; }
   h1 { gap: 0 12px; }
   .motto { font-size: 13px; letter-spacing: .24em; }

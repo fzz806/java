@@ -10,8 +10,12 @@ import java.time.LocalDateTime;
  * 用户累计经验，对应 MySQL 表 t_user_exp。
  *
  * <p>只存 {@code total_exp} 一个数字，阶位（等级）由
- * {@code TaskService#levelOf} 实时推导，与战力同一思路：
- * 源头只有一个，展示层怎么算都不会互相矛盾。
+ * {@code TaskService#levelOf} 实时推导。
+ *
+ * <p>阶位与大境界是同一条阶梯（{@code RealmLadder}），两边靠双向同步保持一致：
+ * 经验跨阶会把 {@code t_power.realm_index} 一起推上去，修行突破则把
+ * {@code total_exp} 补到该阶起点。所以这里的数字是「功业经验 + 境界折算」，
+ * 不再是与战力图无关的独立进度。
  */
 @TableName("t_user_exp")
 public class UserExp {

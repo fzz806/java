@@ -1,10 +1,12 @@
 package com.falsegod.service;
 
 import com.falsegod.entity.ExpLog;
+import com.falsegod.entity.Power;
 import com.falsegod.entity.Task;
 import com.falsegod.entity.UserExp;
 import com.falsegod.entity.UserTask;
 import com.falsegod.mapper.ExpLogMapper;
+import com.falsegod.mapper.PowerMapper;
 import com.falsegod.mapper.TaskMapper;
 import com.falsegod.mapper.UserExpMapper;
 import com.falsegod.mapper.UserTaskMapper;
@@ -46,6 +48,7 @@ class TaskServiceTest {
     private UserTaskMapper userTaskMapper;
     private UserExpMapper userExpMapper;
     private ExpLogMapper expLogMapper;
+    private PowerMapper powerMapper;
     private TaskService service;
 
     @BeforeEach
@@ -54,21 +57,35 @@ class TaskServiceTest {
         userTaskMapper = mock(UserTaskMapper.class);
         userExpMapper = mock(UserExpMapper.class);
         expLogMapper = mock(ExpLogMapper.class);
+        powerMapper = mock(PowerMapper.class);
         when(expLogMapper.selectList(any())).thenReturn(List.of());
         // 默认今天还没领过任何任务，个别用例自行覆写
         when(userTaskMapper.selectCount(any())).thenReturn(0L);
-        service = new TaskService(taskMapper, userTaskMapper, userExpMapper, expLogMapper);
+        when(powerMapper.selectOne(any())).thenReturn(power(3, 2));   // 四印 · 圆满
+        service = new TaskService(taskMapper, userTaskMapper, userExpMapper, expLogMapper, powerMapper);
+    }
+
+    private Power power(int realmIndex, int stage) {
+        Power p = new Power();
+        p.setUserId(UID);
+        p.setRealmIndex(realmIndex);
+        p.setStage(stage);
+        p.setSpirit(900);
+        p.setSpiritMax(2000);
+        p.setSkills(7);
+        p.setEssence(8);
+        return p;
     }
 
     // ==================== 阶位推导 ====================
 
     @Test
-    @DisplayName("0 经验是一阶弃子，门槛 100")
+    @DisplayName("0 经验是一阶一印，门槛 100（阶位名与大境界同名，弃子只是身份判定）")
     void levelOfZero() {
         TaskService.LevelInfo li = TaskService.levelOf(0);
 
         assertEquals(1, li.level);
-        assertEquals("弃子", li.title);
+        assertEquals("一印", li.title);
         assertEquals(0, li.exp);
         assertEquals(100, li.expMax);
         assertEquals(0, li.percent);
@@ -81,9 +98,21 @@ class TaskServiceTest {
         TaskService.LevelInfo li = TaskService.levelOf(100);
 
         assertEquals(2, li.level);
-        assertEquals("拾印者", li.title);
+        assertEquals("二印", li.title);
         assertEquals(0, li.exp);
         assertEquals(180, li.expMax);
+    }
+
+    @Test
+    @DisplayName("四印的门槛是 540 点：折算后阶位与修行页的「四印」一致")
+    void fourSealMatchesRealm() {
+        assertEquals(540, TaskService.threshold(4));
+
+        TaskService.LevelInfo li = TaskService.levelOf(TaskService.threshold(4));
+        assertEquals(4, li.level);
+        assertEquals("四印", li.title);
+        assertEquals(0, li.exp, "刚好跨到四印起点，阶内经验归零");
+        assertEquals(340, li.expMax);
     }
 
     @Test
@@ -96,11 +125,11 @@ class TaskServiceTest {
     }
 
     @Test
-    @DisplayName("累计 3780 点正好十阶神明且封顶，再多的经验也不再加阶")
+    @DisplayName("累计 3780 点正好十阶真神且封顶，再多的经验也不再加阶")
     void levelCapsAtTen() {
         TaskService.LevelInfo top = TaskService.levelOf(3780);
         assertEquals(10, top.level);
-        assertEquals("神明", top.title);
+        assertEquals("真神", top.title);
         assertTrue(top.full);
         assertEquals(0, top.expMax);
         assertEquals(100, top.percent);
@@ -121,6 +150,7 @@ class TaskServiceTest {
         when(userTaskMapper.selectOne(any())).thenReturn(row(1L, 1, null));
         when(userTaskMapper.update(any(), any())).thenReturn(1);
         when(userExpMapper.selectOne(any())).thenReturn(exp(0));
+        when(powerMapper.selectOne(any())).thenReturn(power(0, 0));   // 一印，避免境界折算干扰
 
         TaskService.ClaimOutcome r = service.claim(UID, 1L);
 
@@ -142,6 +172,7 @@ class TaskServiceTest {
         when(userTaskMapper.update(any(), any())).thenReturn(1);
         // 已有 90 点，领 320 → 410：1→2 阶花 100，2→3 阶花 180，剩 130 停在 3 阶
         when(userExpMapper.selectOne(any())).thenReturn(exp(90));
+        when(powerMapper.selectOne(any())).thenReturn(power(0, 0));   // 一印，避免境界折算干扰
 
         TaskService.ClaimOutcome r = service.claim(UID, 1L);
 
@@ -149,7 +180,9 @@ class TaskServiceTest {
         assertEquals(true, r.getData().get("levelUp"));
         assertEquals(1, r.getData().get("oldLevel"));
         assertEquals(3, r.getData().get("newLevel"));
-        assertEquals("淬印者", r.getData().get("newTitle"));
+        assertEquals("三印", r.getData().get("newTitle"));
+        assertEquals(true, r.getData().get("realmUp"), "经验跨阶要把大境界一起推上去");
+        verify(powerMapper).updateById(any(Power.class));
     }
 
     @Test
@@ -210,7 +243,7 @@ class TaskServiceTest {
     // ==================== 每日领取额度 ====================
 
     @Test
-    @DisplayName("今日已领满 10 个时拒绝领取，且不改任务状态、不写经验")
+    @DisplayName("今日日课已领满 10 条时拒绝领取，且不改任务状态、不写经验")
     void claimRejectedWhenDailyLimitReached() {
         when(taskMapper.selectById(1L)).thenReturn(task(1L, "daily_login", "daily", "login", 1, 40));
         when(userTaskMapper.selectOne(any())).thenReturn(row(1L, 1, null));
@@ -219,10 +252,27 @@ class TaskServiceTest {
         TaskService.ClaimOutcome r = service.claim(UID, 1L);
 
         assertFalse(r.isOk());
-        assertTrue(r.getMessage().contains("上限"), r.getMessage());
+        assertTrue(r.getMessage().contains("已领满"), r.getMessage());
         verify(userTaskMapper, never()).update(any(), any());
         verify(userExpMapper, never()).updateById(any(UserExp.class));
         verify(expLogMapper, never()).insert(any(ExpLog.class));
+    }
+
+    @Test
+    @DisplayName("日课额度用尽不影响主线：主线是一次性功业，不占额度")
+    void mainClaimIgnoresDailyLimit() {
+        when(taskMapper.selectById(1L)).thenReturn(task(1L, "main_realm", "main", "realm", 1, 200));
+        when(taskMapper.selectList(any())).thenReturn(List.of());
+        when(userTaskMapper.selectOne(any())).thenReturn(row(1L, 1, null));
+        // 今天日课额度已经领满 10 条
+        when(userTaskMapper.selectCount(any())).thenReturn(10L);
+        when(userTaskMapper.update(any(), any())).thenReturn(1);
+        when(userExpMapper.selectOne(any())).thenReturn(exp(0));
+
+        TaskService.ClaimOutcome r = service.claim(UID, 1L);
+
+        assertTrue(r.isOk(), r.getMessage());
+        assertEquals(200, r.getData().get("gain"));
     }
 
     @Test
@@ -257,9 +307,12 @@ class TaskServiceTest {
 
         Map<String, Object> panel = service.panel(UID);
 
-        assertEquals(2, panel.get("level"));
-        assertEquals("拾印者", panel.get("title"));
-        assertEquals(100, panel.get("totalExp"));
+        // 玩家档案是四印（门槛 540）：功业只有 100 点时按门槛折算，阶位必须显示四印，
+        // 不能出现「修行页四印、任务页一阶」。
+        assertEquals(4, panel.get("level"));
+        assertEquals("四印", panel.get("title"));
+        assertEquals("四印 · 圆满", panel.get("realm"));
+        assertEquals(540, panel.get("totalExp"));
         assertEquals(2, panel.get("dailyTotal"));
         assertEquals(1, panel.get("mainTotal"));
 

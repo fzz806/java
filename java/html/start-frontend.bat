@@ -16,6 +16,6 @@ if not exist "node_modules" (
     )
 )
 
-echo [frontend] 启动开发服务器 http://192.168.68.63:5173 ...
+echo [frontend] 启动开发服务器 http://192.168.68.49:5173 ...
 call npm run dev
 pause

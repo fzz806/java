@@ -65,6 +65,9 @@ function pickTab(tab) {
             <span class="step-name">{{ r.name }}</span>
             <span v-if="r.mark" class="step-mark">{{ r.mark }}</span>
             <span v-else class="step-desc">{{ r.desc }}</span>
+            <div v-if="r.stages && r.stages.length" class="step-stages">
+              <span v-for="st in r.stages" :key="st" class="sub-stage">{{ st }}</span>
+            </div>
           </div>
           <span v-if="i < realms.length - 1" class="arrow">→</span>
         </template>
@@ -379,8 +382,8 @@ function pickTab(tab) {
   gap: 6px;
 }
 .step {
-  flex: 1 1 92px;
-  min-width: 92px;
+  flex: 1 1 106px;
+  min-width: 106px;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -419,6 +422,25 @@ function pickTab(tab) {
   line-height: 1.6;
   color: #6f6779;
 }
+/* 小境界档位（初印/中印/圆满/巅峰） */
+.step-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(255, 255, 255, .07);
+}
+.sub-stage {
+  font-size: 9px;
+  line-height: 1.5;
+  letter-spacing: .02em;
+  padding: 1px 4px;
+  color: #8d8598;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 1px;
+}
+.step.apex .sub-stage { color: var(--c1); border-color: var(--c1-dim); }
 .arrow {
   align-self: center;
   flex: none;
