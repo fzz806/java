@@ -8,7 +8,8 @@ package com.falsegod.common;
  * <ul>
  *   <li>大境界共 10 阶：一印 → 八印【天锁八印】 → 半神 → 真神（自封之神）</li>
  *   <li>神格阶位 Lv.N 与第 N 个大境界一一对应（Lv.4 = 四印）</li>
- *   <li>每阶内含 4 档小境界：初印 → 中印 → 圆满 → 巅峰（半神为初阶/中阶/圆满/巅峰）</li>
+ *   <li>印级（一印~八印）每阶 4 档小境界：初印 → 中印 → 圆满 → 巅峰；
+ *       半神为 3 档：初阶 → 中阶 → 巅峰；真神只有一个位格</li>
  * </ul>
  *
  * <p>两边都引用这里的常量，改阶梯只需要改这一处。「弃子」属于神堂对玩家的判定
@@ -30,18 +31,18 @@ public final class RealmLadder {
     /** 印级（一印~八印）的小境界 */
     public static final String[] STAGES_SEAL = {"初印", "中印", "圆满", "巅峰"};
 
-    /** 半神的小境界 */
-    public static final String[] STAGES_HALF = {"初阶", "中阶", "圆满", "巅峰"};
+    /** 半神的小境界（3 档，无「圆满」） */
+    public static final String[] STAGES_HALF = {"初阶", "中阶", "巅峰"};
 
     /** 真神只有一个位格 */
     public static final String[] STAGES_TRUE_GOD = {"自封之神"};
 
-    /** 每个大境界内的小境界档数（真神除外） */
+    /** 印级（一印~八印）的小境界档数；半神为 3 档，真神 1 档，取档数用 {@link #stageCount} */
     public static final int STAGE_MAX = 4;
 
-    /** 新档案默认境界：四印 · 圆满（战力 3940，与剧情设定一致） */
-    public static final int DEFAULT_REALM_INDEX = 3;
-    public static final int DEFAULT_STAGE = 2;
+    /** 新档案默认境界：一印 · 初印 —— 注册即从修行起点开始 */
+    public static final int DEFAULT_REALM_INDEX = 0;
+    public static final int DEFAULT_STAGE = 0;
 
     private RealmLadder() {
     }
@@ -81,6 +82,11 @@ public final class RealmLadder {
             return STAGES_HALF;
         }
         return STAGES_SEAL;
+    }
+
+    /** 该大境界的小境界档数：印级 4、半神 3、真神 1 */
+    public static int stageCount(int realmIndex) {
+        return stagesOf(realmIndex).length;
     }
 
     /** 小境界名，如「圆满」 */

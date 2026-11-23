@@ -109,7 +109,7 @@ if errorlevel 1 (ping -n 2 127.0.0.1 >nul & goto :wait_frontend)
 echo    [OK] frontend :5173
 
 echo.
-echo   [DONE] front http://192.168.68.49:5173   back http://192.168.68.49:8080
+echo   [DONE] front http://192.168.68.63:5173   back http://192.168.68.63:8080
 echo   test account: chenhaoyu / 123456
 exit /b 0
 

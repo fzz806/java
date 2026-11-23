@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
+import java.time.LocalDateTime;
+
 /**
  * 公会成员实体，对应 MySQL 表 t_member（兼作战力榜数据源）
  */
@@ -13,6 +15,9 @@ public class Member {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+
+    /** 关联的真实玩家 t_user.id，为空表示剧情 NPC */
+    private Long userId;
 
     private String name;
 
@@ -29,6 +34,12 @@ public class Member {
     /** 一句话介绍 */
     private String bio;
 
+    /** 公会贡献值 */
+    private Integer contribution;
+
+    /** 入会时间 */
+    private LocalDateTime joinedAt;
+
     /**
      * 该行是否为「当前登录玩家」本人（不落库，仅战力榜合并时临时置 true）。
      * 前端据此高亮自己那一行，比按昵称匹配更可靠。
@@ -42,6 +53,14 @@ public class Member {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public String getName() {
@@ -90,6 +109,22 @@ public class Member {
 
     public void setBio(String bio) {
         this.bio = bio;
+    }
+
+    public Integer getContribution() {
+        return contribution;
+    }
+
+    public void setContribution(Integer contribution) {
+        this.contribution = contribution;
+    }
+
+    public LocalDateTime getJoinedAt() {
+        return joinedAt;
+    }
+
+    public void setJoinedAt(LocalDateTime joinedAt) {
+        this.joinedAt = joinedAt;
     }
 
     public Boolean getSelf() {

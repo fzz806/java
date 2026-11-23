@@ -79,16 +79,21 @@ class PowerServiceTest {
     }
 
     @Test
-    @DisplayName("无档案时惰性建档，初始状态为四印·圆满、战力 3940")
+    @DisplayName("无档案时惰性建档：注册即从一印·初印开始，战力 140")
     void panelCreatesProfileWhenAbsent() {
         when(powerMapper.selectOne(any())).thenReturn(null);
 
         Map<String, Object> panel = service.panel(UID);
 
         verify(powerMapper).insert(any(Power.class));
-        assertEquals(3940, panel.get("power"));
-        assertEquals("四印 · 圆满", panel.get("realm"));
-        assertEquals(2, panel.get("seal"));
+        assertEquals(140, panel.get("power"));
+        assertEquals("一印 · 初印", panel.get("realm"));
+        assertEquals("一印", panel.get("realmName"));
+        assertEquals("一印 · 中印", panel.get("nextRealm"));
+        assertEquals(0, panel.get("seal"));
+        assertEquals(4, panel.get("sealMax"));
+        assertEquals(1, panel.get("realmLevel"), "刚入一印，进度条应是 1/4");
+        assertEquals(2000, panel.get("spiritMax"));
     }
 
     @Test
@@ -416,7 +421,7 @@ class PowerServiceTest {
     }
 
     @Test
-    @DisplayName("半神的小境界名为初阶/中阶/圆满/巅峰")
+    @DisplayName("半神的小境界名为初阶/中阶/巅峰（3 档，无圆满）")
     void halfGodUsesHalfStages() {
         when(powerMapper.selectOne(any())).thenReturn(power(8, 1, 2000, 2000, 7, 8));
 
@@ -424,13 +429,14 @@ class PowerServiceTest {
 
         assertEquals("半神 · 中阶", panel.get("realm"));
         assertEquals("中阶", panel.get("stageName"));
-        assertEquals("半神 · 圆满", panel.get("nextRealm"));
+        assertEquals(3, panel.get("stageMax"), "半神只有 3 档");
+        assertEquals("半神 · 巅峰", panel.get("nextRealm"));
     }
 
     @Test
     @DisplayName("半神·巅峰突破即封真神（自封之神）")
     void halfGodBreaksThroughToTrueGod() {
-        when(powerMapper.selectOne(any())).thenReturn(power(8, 3, 2000, 2000, 7, 8));
+        when(powerMapper.selectOne(any())).thenReturn(power(8, 2, 2000, 2000, 7, 8));
 
         PowerService.UpgradeOutcome r = service.upgrade(UID, "realm");
 

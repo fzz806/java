@@ -173,8 +173,8 @@ else {
 
 Write-Step ''
 Write-Step '  ============================================================'
-Write-Step '   [DONE] frontend http://192.168.68.49:5173'
-Write-Step '          backend  http://192.168.68.49:8080'
+Write-Step '   [DONE] frontend http://192.168.68.63:5173'
+Write-Step '          backend  http://192.168.68.63:8080'
 Write-Step '   test account: chenhaoyu / 123456'
 Write-Step '  ============================================================'
 exit 0

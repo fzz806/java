@@ -422,7 +422,7 @@ function pickTab(tab) {
   line-height: 1.6;
   color: #6f6779;
 }
-/* 小境界档位（初印/中印/圆满/巅峰） */
+/* 小境界档位（印级 4 档，半神 3 档） */
 .step-stages {
   display: flex;
   flex-wrap: wrap;

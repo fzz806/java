@@ -123,8 +123,9 @@ public class TaskService {
         int realmIndex = p == null ? RealmLadder.DEFAULT_REALM_INDEX : RealmLadder.clamp(nz(p.getRealmIndex()));
         int stage = p == null ? RealmLadder.DEFAULT_STAGE : nz(p.getStage());
 
-        // 境界折算：四印的门槛是 540 点，玩家的功业经验低于它时按门槛展示，
-        // 否则「四印的人显示一阶」这种矛盾会一直存在。折算量单独回传，前端可标注。
+        // 境界折算：当前大境界的起点经验就是下限（如四印 540 点），
+        // 功业经验低于它时按门槛展示，否则「四印的人显示一阶」这种矛盾会一直存在。
+        // 折算量单独回传，前端可标注。
         int rawExp = safeInt(ue.getTotalExp(), 0);
         int baseExp = Math.max(rawExp, threshold(realmIndex + 1));
         LevelInfo level = levelOf(baseExp);
@@ -452,7 +453,7 @@ public class TaskService {
      *
      * <p>两个方向都要管，否则总有一边落后：
      * <ul>
-     *   <li>境界在前（新档默认四印、或刚用灵能突破）→ 经验补到该阶起点</li>
+     *   <li>境界在前（新档默认一印、或刚用灵能突破）→ 经验补到该阶起点</li>
      *   <li>经验在前（靠功业一路领取）→ 大境界跟上，小境界归初印</li>
      * </ul>
      */
@@ -518,8 +519,8 @@ public class TaskService {
             p.setStage(0);
             p.setSpirit(900);
             p.setSpiritMax(2000);
-            p.setSkills(7);
-            p.setEssence(8);
+            p.setSkills(1);
+            p.setEssence(0);
             p.setUpdatedAt(LocalDateTime.now());
             powerMapper.insert(p);
             return;
