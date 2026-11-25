@@ -97,9 +97,10 @@ SELECT '通告', '恶鬼之牙欢迎新血', '神弃者皆可为恶鬼。递交�
 WHERE NOT EXISTS (SELECT 1 FROM `t_guild_notice` WHERE `sort_no` = 3);
 
 -- ----------------------------
--- 6. 会长在册（chenhaoyu 为 t_user.id=1）：会长本人也应在名册中，可供奉
+-- 6. 会长在册（登录账号 chenhaoyu 为 t_user.id=1，名册展示名「陈昊宇」）：会长本人也应在名册中，可供奉
+--    注意：WHERE 里的 'chenhaoyu' 是登录账号，用于匹配 t_user，不可改成中文名
 -- ----------------------------
 INSERT INTO `t_member` (`user_id`, `name`, `role`, `power`, `element`, `realm`, `bio`, `contribution`, `joined_at`)
-SELECT 1, 'chenhaoyu', '会长', 4200, '魂系', '八印 · 天锁', '恶鬼之牙之主，神堂缉杀令之首', 0, NOW()
+SELECT 1, '陈昊宇', '会长', 4200, '伪神（神魔同流）', '八印 · 天锁', '恶鬼之牙之主 · 神堂缉杀令之首 · 执掌神魔四变，以伪神之身篡改万神法则', 0, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM `t_member` WHERE `user_id` = 1)
   AND EXISTS (SELECT 1 FROM `t_user` WHERE `id` = 1 AND `username` = 'chenhaoyu');

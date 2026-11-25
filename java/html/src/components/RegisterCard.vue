@@ -35,17 +35,14 @@ async function onSubmit() {
   }
   pending.value = true
   try {
-    // TODO: 对接真实后端时，在 src/api/auth.js 中将 USE_MOCK 改为 false 即可
     const result = await register({
       username: username.value,
       password: password.value
     })
     if (result.code === 0) {
-      // 一并抛出神印，供上层自动登临（拿真 token）后进入首页
-      emit('success', {
-        username: result.data?.username || username.value,
-        password: password.value
-      })
+      // 注册成功只回传真名：上层会带用户回到登录页，由其本人输入神印登临
+      // 密码不向上传递，避免留在内存里
+      emit('success', { username: result.data?.username || username.value })
     } else {
       emit('error', result.message)
     }

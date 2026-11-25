@@ -10,7 +10,7 @@ const props = defineProps({
   level: { type: Number, default: 0 },
   levelTitle: { type: String, default: '' }
 })
-const emit = defineEmits(['search', 'navigate', 'toggle-form', 'logout'])
+const emit = defineEmits(['search', 'navigate', 'toggle-form', 'logout', 'admin'])
 
 // 移动端折叠菜单
 const open = ref(false)
@@ -94,6 +94,17 @@ function onNav(item) {
           <span class="avatar">{{ initial }}</span>
           <span class="uname">{{ username }}</span>
         </div>
+
+        <!-- 名字旁边：进入管理后台 -->
+        <button class="admin-entry" title="进入管理后台" @click="emit('admin')">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.7" />
+            <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.7" />
+            <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.7" />
+            <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.7" />
+          </svg>
+          <span>控制台</span>
+        </button>
 
         <button class="logout" @click="emit('logout')">退出</button>
 
@@ -384,6 +395,30 @@ function onNav(item) {
   white-space: nowrap;
 }
 
+/* 名字旁边：进入管理后台 */
+.admin-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  background: var(--c1-soft);
+  border: 1px solid var(--c1-dim);
+  border-radius: 2px;
+  color: var(--c1);
+  font-family: inherit;
+  font-size: 11.5px;
+  letter-spacing: .14em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .3s, border-color .3s, background .3s, box-shadow .3s;
+}
+.admin-entry svg { width: 14px; height: 14px; flex: none; }
+.admin-entry:hover {
+  border-color: var(--c1);
+  box-shadow: 0 0 18px var(--c1-glow);
+  filter: brightness(1.3);
+}
+
 .logout {
   background: none;
   border: none;
@@ -446,6 +481,8 @@ function onNav(item) {
   .mobile-panel { display: block; }
   .menu-btn { display: grid; }
   .uname { display: none; }
+  .admin-entry { padding: 6px 8px; }
+  .admin-entry span { display: none; }
   .form-btn { font-size: 10.5px; padding: 6px 9px; }
   .lv-chip { padding: 5px 8px; }
   .lv-chip i { display: none; }

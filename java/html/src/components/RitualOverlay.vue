@@ -4,7 +4,8 @@ import { ref, watch, onBeforeUnmount } from 'vue'
 const props = defineProps({
   visible: { type: Boolean, default: false },
   godMode: { type: Boolean, default: false },
-  username: { type: String, default: '' }
+  username: { type: String, default: '' },
+  flow: { type: String, default: 'login' } // 'login' | 'register'
 })
 const emit = defineEmits(['done'])
 
@@ -45,7 +46,11 @@ watch(
         text.value = steps[i]
       } else {
         stop()
-        text.value = `${props.username} · 神印烙成 · ${props.godMode ? '神变 · 伪神' : '鬼变 · 恶鬼'}登场`
+        // 注册流不会进入首页，结束语改为提示回登录页登临
+        const ending = props.flow === 'register'
+          ? '请登临神位'
+          : `${props.godMode ? '神变 · 伪神' : '鬼变 · 恶鬼'}登场`
+        text.value = `${props.username} · 神印烙成 · ${ending}`
         setTimeout(() => emit('done'), 1500)
       }
     }, 950)

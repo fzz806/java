@@ -29,7 +29,7 @@ const props = defineProps({
   godMode: { type: Boolean, default: false },
   loginAt: { type: Number, default: 0 }
 })
-const emit = defineEmits(['logout', 'toggle-form'])
+const emit = defineEmits(['logout', 'toggle-form', 'admin'])
 
 const searchRef = ref(null)
 
@@ -284,6 +284,7 @@ function openChat(f) {
       @navigate="handleNavigate"
       @toggle-form="emit('toggle-form')"
       @logout="emit('logout')"
+      @admin="emit('admin')"
     />
 
     <!-- 子页面：神技图鉴 / 镇兽大比 / 恶鬼之牙 / 战力榜 -->
@@ -322,7 +323,6 @@ function openChat(f) {
 
         <div class="hero-inner">
           <div class="hero-top">
-            <span class="verdict">神堂判定：神弃之人 · 终生无法镶嵌神印</span>
             <span class="date">{{ dateText }} · 镇兽大比赛季</span>
           </div>
 
@@ -555,31 +555,11 @@ main {
 
 .hero-top {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 30px;
-}
-.verdict {
-  display: inline-block;
-  font-size: 11.5px;
-  letter-spacing: .3em;
-  color: #9a917f;
-  border: 1px dashed #55503f;
-  padding: 6px 12px 6px 16px;
-  transform: rotate(-1.2deg);
-  position: relative;
-}
-.verdict::before {
-  content: "✕";
-  position: absolute;
-  right: -13px;
-  top: -11px;
-  font-size: 17px;
-  color: var(--c1);
-  text-shadow: 0 0 10px var(--c1-glow);
-  transition: color .8s;
 }
 .date {
   font-size: 11px;

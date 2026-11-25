@@ -4,8 +4,6 @@
 
 <template>
   <div class="declaration">
-    <div class="verdict">神堂判定：神弃之人 · 终生无法镶嵌神印</div>
-
     <h1>
       <span class="eyebrow">觉 醒 伪 神</span>
       <span class="line1">神明弃我<span class="comma">，</span></span>
@@ -33,27 +31,6 @@
 .declaration {
   flex: 1.2;
   user-select: none;
-}
-.verdict {
-  display: inline-block;
-  font-size: 12px;
-  letter-spacing: .35em;
-  color: #9a917f;
-  border: 1px dashed #55503f;
-  padding: 6px 12px 6px 16px;
-  margin-bottom: 24px;
-  transform: rotate(-1.2deg);
-  position: relative;
-}
-.verdict::before {
-  content: "✕";
-  color: var(--c1);
-  position: absolute;
-  right: -14px;
-  top: -12px;
-  font-size: 20px;
-  text-shadow: 0 0 10px var(--c1-glow);
-  transition: color .8s;
 }
 h1 {
   /* 72px 时「神明弃我，」实测约 389px，而左栏只有 384px，会多折出一行

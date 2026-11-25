@@ -52,7 +52,8 @@ const rest = computed(() => ranked.value.slice(3))
         >
           <span class="rank-badge">{{ m.rank }}</span>
           <span class="p-name">{{ m.name }}<i v-if="isSelf(m)" class="me-tag">我</i></span>
-          <span class="p-role">{{ m.role }} · {{ m.realm }}</span>
+          <span class="p-role">{{ m.role }} · {{ m.element }} · {{ m.realm }}</span>
+          <span class="p-bio">{{ m.bio }}</span>
           <span class="p-power">{{ m.power }}<i>点</i></span>
         </div>
       </div>
@@ -178,6 +179,13 @@ const rest = computed(() => ranked.value.slice(3))
 }
 .p-name { margin-top: 6px; font-size: 19px; font-weight: 900; letter-spacing: .14em; color: #e8e0d0; }
 .p-role { font-size: 10.5px; letter-spacing: .14em; color: #7d7466; }
+.p-bio {
+  min-height: 3.4em;
+  font-size: 10.5px;
+  line-height: 1.7;
+  letter-spacing: .04em;
+  color: #6f6779;
+}
 .p-power {
   font-family: Georgia, serif;
   font-size: 26px;

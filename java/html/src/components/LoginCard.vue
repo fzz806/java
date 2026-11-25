@@ -6,7 +6,9 @@ const emit = defineEmits(['submit', 'error', 'go-register'])
 
 const props = defineProps({
   // 从注册页回来时带回的真名
-  initialUsername: { type: String, default: '' }
+  initialUsername: { type: String, default: '' },
+  // 注册成功回到登录页时的提示语
+  notice: { type: String, default: '' }
 })
 
 const username = ref(props.initialUsername)
@@ -59,6 +61,9 @@ async function onSubmit() {
     </div>
 
     <div class="sub">THE <b>RED</b> SEAL · 镇兽大比入场凭证</div>
+
+    <!-- 注册成功后回到登录页的提示 -->
+    <div v-if="notice" class="notice">{{ notice }}</div>
 
     <form autocomplete="off" @submit.prevent="onSubmit">
       <div class="field">
@@ -154,6 +159,19 @@ h2 {
   margin: 8px 0 34px;
 }
 .sub b { color: var(--c1); font-weight: normal; transition: color .8s; }
+
+.notice {
+  margin: -18px 0 26px;
+  padding: 10px 14px;
+  font-size: 11.5px;
+  letter-spacing: .12em;
+  line-height: 1.6;
+  text-align: center;
+  color: #c9b36a;
+  border: 1px solid rgba(154, 138, 85, .38);
+  border-radius: 2px;
+  background: rgba(154, 138, 85, .09);
+}
 
 /* ---------- 品牌主标 觉醒伪神 ---------- */
 .brand {

@@ -131,8 +131,6 @@ const powerText = computed(() =>
       <div class="layout">
         <!-- ============ 左：战力面板 ============ -->
         <section class="board">
-          <span class="verdict">神堂判定：神弃之人 · 终生无法镶嵌神印</span>
-
           <div class="power-main">
             <span class="p-label">综合战力</span>
             <div class="p-row">
@@ -316,16 +314,6 @@ const powerText = computed(() =>
   height: 260px;
   background: radial-gradient(circle, var(--c1-soft), transparent 70%);
   pointer-events: none;
-}
-.verdict {
-  display: inline-block;
-  font-size: 11px;
-  letter-spacing: .3em;
-  color: #9a917f;
-  border: 1px dashed #55503f;
-  padding: 5px 10px 5px 13px;
-  margin-bottom: 22px;
-  transform: rotate(-1.2deg);
 }
 .power-main { position: relative; }
 .p-label { font-size: 11px; letter-spacing: .35em; color: #7d7466; }

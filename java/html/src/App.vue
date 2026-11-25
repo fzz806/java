@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, watchEffect, onMounted } from 'vue'
+import { ref, watch, watchEffect, onMounted, onBeforeUnmount } from 'vue'
 import RuneCanvas from './components/RuneCanvas.vue'
 import DeclarationPanel from './components/DeclarationPanel.vue'
 import LoginCard from './components/LoginCard.vue'
@@ -7,7 +7,7 @@ import RegisterCard from './components/RegisterCard.vue'
 import HomePage from './components/HomePage.vue'
 import RitualOverlay from './components/RitualOverlay.vue'
 import { getSession, saveSession, clearSession } from './api/session.js'
-import { fetchMe, logout, login } from './api/auth.js'
+import { fetchMe, logout } from './api/auth.js'
 
 // 登录态（刷新页面后从 localStorage 恢复）
 const session = ref(getSession())
@@ -16,8 +16,9 @@ const session = ref(getSession())
 // 已有登录态时直接落在首页
 const view = ref(session.value ? 'home' : 'login')
 
-// 从注册页带回登录页的真名，免去重复输入
+// 从注册页带回登录页的真名与提示，免去重复输入
 const rememberedName = ref('')
+const registerNotice = ref('')
 
 // 当前形态：false = 恶鬼形态（黑红），true = 伪神形态（银星紫）
 const isGodMode = ref(session.value && session.value.form === 'god')
@@ -29,6 +30,8 @@ watchEffect(() => {
   document.body.classList.toggle('god-mode', isGodMode.value)
   // 首页需要纵向滚动，登录页需要整屏居中，用 body 类区分
   document.body.classList.toggle('home-view', view.value === 'home')
+  // 后台是 iframe 全屏视图，需取消登录页的 flex 居中
+  document.body.classList.toggle('admin-view', view.value === 'admin')
 })
 
 // 标题随页面切换
@@ -38,7 +41,8 @@ watch(
     const titles = {
       home: '觉醒伪神 · 首页',
       login: '觉醒伪神 · 登临神位',
-      register: '觉醒伪神 · 铸印封神'
+      register: '觉醒伪神 · 铸印封神',
+      admin: '觉醒伪神 · 管理后台'
     }
     document.title = titles[v] || '觉醒伪神'
     if (v === 'home') window.scrollTo(0, 0)
@@ -51,9 +55,8 @@ const ritualVisible = ref(false)
 const ritualName = ref('')
 const ritualFlow = ref('login') // 'login' | 'register'
 
-// 登录成功后的 token / 注册时的神印，等仪式结束再使用
+// 登录成功后的 token，等仪式结束再写入会话
 let pendingToken = ''
-let pendingPassword = ''
 
 function setForm(god) {
   isGodMode.value = god
@@ -73,34 +76,34 @@ function handleLogin({ username, data }) {
 }
 
 /* ---------------- 注册 ---------------- */
-function handleRegister({ username, password }) {
+function handleRegister({ username }) {
   ritualName.value = username
-  pendingPassword = password || ''
   ritualFlow.value = 'register'
   ritualVisible.value = true
 }
 
-/* ---------------- 仪式结束：统一进入首页 ---------------- */
-async function handleRitualDone() {
+/* ---------------- 仪式结束：登录进首页 / 注册回登录页 ---------------- */
+function handleRitualDone() {
   // 先收起仪式遮罩，否则会一直盖在页面上
   ritualVisible.value = false
 
-  const form = isGodMode.value ? 'god' : 'demon'
-
   if (ritualFlow.value === 'register') {
-    // 注册成功：用刚烙下的神印自动登临一次，拿到真 token；失败则仅以本地会话进入首页
-    let token = ''
-    if (pendingPassword) {
-      const r = await login({ username: ritualName.value, password: pendingPassword })
-      if (r.code === 0 && r.data) token = r.data.token || ''
-    }
-    saveSession({ username: ritualName.value, token, form })
-  } else {
-    saveSession({ username: ritualName.value, token: pendingToken, form })
+    // 注册成功：不自动登临，带真名回到登录页，由本人亲手输入神印
+    rememberedName.value = ritualName.value
+    registerNotice.value = `神印「${ritualName.value}」已铸成，请登临神位`
+    pendingToken = ''
+    view.value = 'login'
+    return
   }
 
+  // 登录成功：写入会话并进入首页
+  saveSession({
+    username: ritualName.value,
+    token: pendingToken,
+    form: isGodMode.value ? 'god' : 'demon'
+  })
   pendingToken = ''
-  pendingPassword = ''
+  registerNotice.value = ''
   session.value = getSession()
   loginAt.value = session.value ? session.value.loginAt : Date.now()
   view.value = 'home'
@@ -112,6 +115,17 @@ function handleLoginError(message) {
 
 function handleRegisterError(message) {
   alert(`封神失败：${message}`)
+}
+
+/* ---------------- 管理后台 ---------------- */
+function openAdmin() {
+  view.value = 'admin'
+}
+
+// 后台 iframe 内点「返回主站」后，通过 postMessage 通知这里切回首页
+function onAdminMessage(e) {
+  if (e.origin !== window.location.origin) return
+  if (e.data && e.data.type === 'afg-admin-back') view.value = 'home'
 }
 
 /* ---------------- 首页：切换形态 / 退出 ---------------- */
@@ -137,6 +151,7 @@ async function handleLogout() {
 
 // 启动时校验本地 token 是否仍然有效（可能已过期或被服务端撤销）
 onMounted(async () => {
+  window.addEventListener('message', onAdminMessage)
   const current = session.value
   if (!current || !current.token) return
   const r = await fetchMe(current.token)
@@ -153,11 +168,13 @@ onMounted(async () => {
   }
   // code === -1（后端没启动）时保持本地登录态，不打断用户
 })
+
+onBeforeUnmount(() => window.removeEventListener('message', onAdminMessage))
 </script>
 
 <template>
   <!-- 背景粒子（恶鬼红烬 / 伪神星屑） -->
-  <RuneCanvas :god-mode="isGodMode" />
+  <RuneCanvas v-if="view !== 'admin'" :god-mode="isGodMode" />
 
   <!-- 首页 -->
   <HomePage
@@ -167,7 +184,17 @@ onMounted(async () => {
     :login-at="loginAt"
     @toggle-form="handleToggleForm"
     @logout="handleLogout"
+    @admin="openAdmin"
   />
+
+  <!-- 管理后台：内嵌独立页面，样式与脚本完全隔离，互不污染 -->
+  <div v-else-if="view === 'admin'" class="admin-shell">
+    <iframe
+      class="admin-frame"
+      src="/admin-dashboard.html"
+      title="觉醒伪神 · 管理后台"
+    ></iframe>
+  </div>
 
   <!-- 登录 / 注册 -->
   <template v-else>
@@ -185,6 +212,7 @@ onMounted(async () => {
       <LoginCard
         v-if="view === 'login'"
         :initial-username="rememberedName"
+        :notice="registerNotice"
         @submit="handleLogin"
         @error="handleLoginError"
         @go-register="view = 'register'"
@@ -200,14 +228,37 @@ onMounted(async () => {
 
   <!-- 觉醒仪式遮罩 -->
   <RitualOverlay
+    v-if="view !== 'admin'"
     :visible="ritualVisible"
     :god-mode="isGodMode"
     :username="ritualName"
+    :flow="ritualFlow"
     @done="handleRitualDone"
   />
 </template>
 
 <style scoped>
+/* ---------- 管理后台：全屏 iframe ---------- */
+.admin-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #f4f6fb;
+}
+.admin-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+/* 后台视图下取消登录页的整屏居中（body 是全局元素，需 :global） */
+:global(body.admin-view) {
+  display: block;
+  overflow: hidden;
+  align-items: initial;
+  justify-content: initial;
+}
+
 .statusbar {
   position: fixed;
   top: 0;
